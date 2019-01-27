@@ -13,6 +13,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add directory="include" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -20,6 +21,9 @@
 				<Option object_output="obj/Release/" />
 				<Option type="0" />
 				<Option compiler="gcc" />
+				<Compiler>
+					<Add directory="include" />
+				</Compiler>
 				<Linker>
 					<Add option="-O3" />
 					<Add option="-s" />
@@ -35,7 +39,13 @@
 			<Add library="kernel32" />
 			<Add library="comctl32" />
 		</Linker>
+		<Unit filename="include/Engine.hpp" />
+		<Unit filename="include/Level.hpp" />
+		<Unit filename="include/Player.hpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="src/Engine.cpp" />
+		<Unit filename="src/Level.cpp" />
+		<Unit filename="src/Player.cpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />
