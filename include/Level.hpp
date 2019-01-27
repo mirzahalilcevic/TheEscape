@@ -2,15 +2,25 @@
 
 #include <vector>
 
+#include "Player.hpp"
+
 class Level
 {
     public:
 
-    size_t number;
-    size_t width, height;
+        size_t number;
+        size_t width, height;
+        std::vector<std::vector<int>> levelMap;
 
-    std::vector<std::vector<int>> levelMap;
+        Level(Player& player)
+            : player_(player)
+        {}
 
-    void load(size_t);
+        void load(size_t);
+
+
+    private:
+
+        Player& player_;
 
 };

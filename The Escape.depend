@@ -1,22 +1,30 @@
 # depslib dependency file v1.0
-1548541022 source:c:\users\mirza\desktop\the escape\main.cpp
+1548551038 source:c:\users\mirza\desktop\the escape\main.cpp
 	<tchar.h>
 	<windows.h>
 	"Engine.hpp"
 
-1548541979 c:\users\mirza\desktop\the escape\include\engine.hpp
+1548551417 c:\users\mirza\desktop\the escape\include\engine.hpp
 	<windows.h>
 	"Level.hpp"
+	"Player.hpp"
 
-1548542833 c:\users\mirza\desktop\the escape\include\level.hpp
+1548549287 c:\users\mirza\desktop\the escape\include\level.hpp
 	<vector>
+	"Player.hpp"
 
-1548541592 source:c:\users\mirza\desktop\the escape\src\engine.cpp
+1548551474 source:c:\users\mirza\desktop\the escape\src\engine.cpp
+	<cmath>
 	"Engine.hpp"
 
-1548542017 source:c:\users\mirza\desktop\the escape\src\level.cpp
+1548549059 source:c:\users\mirza\desktop\the escape\src\level.cpp
 	<fstream>
 	<string>
 	<stdexcept>
 	"Level.hpp"
+
+1548549182 c:\users\mirza\desktop\the escape\include\player.hpp
+
+1548548158 source:c:\users\mirza\desktop\the escape\src\player.cpp
+	"Player.hpp"
 

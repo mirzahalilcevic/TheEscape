@@ -15,6 +15,7 @@ void Level::load(size_t n)
     ifstream levelFile(LEVEL(number));
     if (levelFile.is_open())
     {
+        levelFile >> player_.x >> player_.y >> player_.angle;
         levelFile >> width >> height;
 
         levelMap.resize(width);

@@ -21,6 +21,8 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     HWND hwnd;
     WNDCLASSEX wincl;
 
+    auto backgroundBrush = CreateSolidBrush(RGB(255, 255, 255));
+
     wincl.hInstance = hThisInstance;
     wincl.lpszClassName = szClassName;
     wincl.lpfnWndProc = WindowProcedure;
@@ -32,7 +34,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     wincl.lpszMenuName = NULL;
     wincl.cbClsExtra = 0;
     wincl.cbWndExtra = 0;
-    wincl.hbrBackground = (HBRUSH) COLOR_BACKGROUND;
+    wincl.hbrBackground = backgroundBrush;
 
     if (!RegisterClassEx (&wincl))
         return 0;
@@ -54,9 +56,10 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
     ShowWindow (hwnd, nCmdShow);
 
-    Engine engine(hwnd);
+    Engine engine(hwnd, backgroundBrush);
     engine.start();
 
+    DeleteObject(backgroundBrush);
     return 0;
 }
 
