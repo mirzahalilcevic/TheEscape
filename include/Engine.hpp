@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __MINGW32__
-#   define _WIN32_WINNT 0x0501
-#endif // __MINGW32__
-
 #include <windows.h>
 
 #include "Level.hpp"
@@ -13,15 +9,15 @@ class Engine
 {
     public:
 
-        static constexpr DWORD frameDelay = 16; // ~60 FPS
+        static constexpr DWORD frameDelay = 1000/60; // ~60 FPS
 
         Engine();
         ~Engine();
 
-        void init(HWND hwnd) { hwnd_ = hwnd; }
+        void init(HWND hwnd);
         void start();
-        void handleInput(RAWINPUT *);
 
+        void handleLButtonDown(int, int);
 
     private:
 
@@ -31,12 +27,18 @@ class Engine
         HBRUSH whiteBrush_;
         HPEN blackPen_;
         HPEN whitePen_;
+        HPEN grayPen_;
+
+        RECT cRect_;
 
         Player player_;
         Level level_{player_};
 
         void checkInput();
+        void updatePlayerPos(double, double);
+
         void render();
         void drawMiniMap(HDC);
+        void castRays();
 
 };

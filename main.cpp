@@ -4,15 +4,8 @@
     #define UNICODE
 #endif
 
-#ifdef __MINGW32__
-#   define _WIN32_WINNT 0x0501
-#endif // __MINGW32__
-
 #include <tchar.h>
 #include <windows.h>
-
-#include <iostream>
-#include <stdexcept>
 
 #include "Engine.hpp"
 Engine * engine = nullptr;
@@ -51,7 +44,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
            0,
            szClassName,
            _T("The Escape"),
-           WS_OVERLAPPEDWINDOW,
+           WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX),
            CW_USEDEFAULT,
            CW_USEDEFAULT,
            800,
@@ -74,48 +67,13 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
 LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    // static RAWINPUTDEVICE Rid[2];
-    // static UINT bufferSize;
-    // static BYTE * buffer = nullptr;
-
     switch (message)
     {
-        /*
-        case WM_CREATE:
-
-            // keyboard
-            Rid[0].usUsagePage = 1;
-            Rid[0].usUsage = 6;
-            Rid[0].dwFlags = 0;
-            Rid[0].hwndTarget = NULL;
-
-            // mouse
-            Rid[1].usUsagePage = 1;
-            Rid[1].usUsage = 2;
-            Rid[1].dwFlags = 0;
-            Rid[1].hwndTarget = NULL;
-
-            if (RegisterRawInputDevices(Rid, 2, sizeof(RAWINPUTDEVICE)) == FALSE)
-                throw std::invalid_argument("unable to register raw input devices");
-
-            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &bufferSize, sizeof (RAWINPUTHEADER));
-            buffer = new BYTE[bufferSize];
-
+        case WM_LBUTTONDOWN:
+            ::engine->handleLButtonDown(LOWORD(lParam), HIWORD(lParam));
             break;
-
-        case WM_INPUT:
-        {
-            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, (LPVOID)buffer, &bufferSize, sizeof (RAWINPUTHEADER));
-
-            RAWINPUT * raw = (RAWINPUT *) buffer;
-            ::engine->handleInput(raw);
-
-            break;
-        }
-        */
         case WM_DESTROY:
             PostQuitMessage (0);
-            // delete [] buffer;
             break;
         default:
             return DefWindowProc (hwnd, message, wParam, lParam);

@@ -18,11 +18,11 @@ void Level::load(size_t n)
         levelFile >> player_.x >> player_.y >> player_.rot;
         levelFile >> width >> height;
 
-        levelMap.resize(width);
-        for (int i = 0; i < width; ++i)
+        levelMap.resize(height);
+        for (auto i = 0u; i < height; ++i)
         {
-            levelMap[i].resize(height);
-            for (int j = 0; j < height; ++j)
+            levelMap[i].resize(width);
+            for (auto j = 0u; j < width; ++j)
                 levelFile >> levelMap[i][j];
 
         }

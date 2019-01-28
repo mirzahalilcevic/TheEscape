@@ -1,14 +1,17 @@
 #pragma once
 
-#define PI 3.1416
+#define PI 3.14159265358979323846
 
 class Player
 {
     public:
 
+        static constexpr double walkSpeed = 0.05;
+        static constexpr double runSpeed = 0.10;
+        static constexpr double rotSpeed = 3 * PI / 180;
+
         double x, y;
         double rot;
-        double moveSpeed = 1.0;
-        double rotSpeed = 6 * PI / 180;
+        double moveSpeed = walkSpeed;
 
 };
