@@ -16,6 +16,7 @@ Engine::Engine()
     blackPen_ = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     whitePen_ = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
     grayPen_ = CreatePen(PS_SOLID, 1, RGB(200, 200, 200));
+    darkGrayPen_ = CreatePen(PS_SOLID, 1, RGB(100, 100, 100));
 }
 
 Engine::~Engine()
@@ -25,6 +26,7 @@ Engine::~Engine()
     DeleteObject(blackPen_);
     DeleteObject(whitePen_);
     DeleteObject(grayPen_);
+    DeleteObject(darkGrayPen_);
 }
 
 void Engine::init(HWND hwnd)
@@ -206,8 +208,6 @@ void Engine::drawMiniMap(HDC hdc)
 
 void Engine::castRays(HDC hdc)
 {
-    SelectObject(hdc, grayPen_);
-
     double x, y;
     double dX, dY;
     double sine, cosine, slope;
@@ -283,11 +283,12 @@ void Engine::castRays(HDC hdc)
         }
 
         if (hHit && vHit)
-            distance = hDistance < vDistance ? hDistance : vDistance;
+            distance = hDistance < vDistance ? (SelectObject(hdc, grayPen_), hDistance)
+                                             : (SelectObject(hdc, darkGrayPen_), vDistance);
         else if (hHit)
-            distance = hDistance;
+            (SelectObject(hdc, grayPen_), distance = hDistance);
         else if (vHit)
-            distance = vDistance;
+            (SelectObject(hdc, darkGrayPen_), distance = vDistance);
         else
             continue;
 

@@ -45,6 +45,7 @@ class Engine
         HPEN blackPen_;
         HPEN whitePen_;
         HPEN grayPen_;
+        HPEN darkGrayPen_;
 
         HWND hwnd_;
         RECT cRect_;
