@@ -10,7 +10,7 @@ class Level
 
         size_t number;
         size_t width, height;
-        std::vector<std::vector<int>> levelMap;
+        std::vector<int> levelMap;
 
         Level(Player& player)
             : player_(player)

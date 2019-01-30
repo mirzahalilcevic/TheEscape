@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <cmath>
 
 #include "Level.hpp"
 #include "Player.hpp"
@@ -11,6 +12,21 @@ class Engine
 
         static constexpr DWORD frameDelay = 1000/60; // ~60 FPS
 
+        // projection plane dimensions
+        static constexpr size_t projPlaneWidth = 794;
+        static constexpr size_t projPlaneHeight = 571;
+
+        // distance from player to the projection plane
+        static constexpr double viewDistance = (projPlaneWidth / 2) / tan(Player::fov / 2.0);
+
+        // angle between subsequent rays
+        static constexpr double angleIncrement = Player::fov / projPlaneWidth;
+
+        // commonly used angles
+        static constexpr double rot90 = PI / 2.0;
+        static constexpr double rot270 = 1.5 * PI;
+        static constexpr double rot360 = 2.0 * PI;
+
         Engine();
         ~Engine();
 
@@ -19,9 +35,10 @@ class Engine
 
         void handleLButtonDown(int, int);
 
+
     private:
 
-        HWND hwnd_;
+        DWORD frameTime_;
 
         HBRUSH blackBrush_;
         HBRUSH whiteBrush_;
@@ -29,6 +46,7 @@ class Engine
         HPEN whitePen_;
         HPEN grayPen_;
 
+        HWND hwnd_;
         RECT cRect_;
 
         Player player_;
@@ -39,6 +57,6 @@ class Engine
 
         void render();
         void drawMiniMap(HDC);
-        void castRays();
+        void castRays(HDC);
 
 };

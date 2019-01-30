@@ -18,17 +18,14 @@ void Level::load(size_t n)
         levelFile >> player_.x >> player_.y >> player_.rot;
         levelFile >> width >> height;
 
-        levelMap.resize(height);
+        levelMap.resize(height * width);
         for (auto i = 0u; i < height; ++i)
-        {
-            levelMap[i].resize(width);
             for (auto j = 0u; j < width; ++j)
-                levelFile >> levelMap[i][j];
+                levelFile >> levelMap[height * i + j];
 
-        }
     }
     else
-        throw invalid_argument("unable to open file");
+        throw invalid_argument("unable to open file \"" + LEVEL(n) + "\"");
 
 
     levelFile.close();
