@@ -4,6 +4,9 @@
     #define UNICODE
 #endif
 
+#define WINDOW_WIDTH  800
+#define WINDOW_HEIGHT 600
+
 #include <tchar.h>
 #include <windows.h>
 
@@ -19,6 +22,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
                     LPSTR lpszArgument,
                     int nCmdShow)
 {
+    SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
     ::engine = new Engine();
 
     HWND hwnd;
@@ -47,8 +51,8 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
            WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX),
            CW_USEDEFAULT,
            CW_USEDEFAULT,
-           800,
-           600,
+           WINDOW_WIDTH,
+           WINDOW_HEIGHT,
            HWND_DESKTOP,
            NULL,
            hThisInstance,
@@ -71,6 +75,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
     {
         case WM_LBUTTONDOWN:
             ::engine->handleLButtonDown(LOWORD(lParam), HIWORD(lParam));
+            break;
+        case WM_KEYDOWN:
+            ::engine->handleKeyDown(wParam);
             break;
         case WM_DESTROY:
             PostQuitMessage (0);

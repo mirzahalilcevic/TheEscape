@@ -6,13 +6,32 @@ class Player
 {
     public:
 
-        static constexpr double walkSpeed = 0.05;
-        static constexpr double runSpeed = 0.10;
-        static constexpr double rotSpeed = 3 * PI / 180;
-        static constexpr double fov = PI / 3;
+        // movement
+        static constexpr double moveSpeedWalk = 0.05;
+        static constexpr double moveSpeedRun  = 0.10;
 
-        double x, y;
-        double rot;
-        double moveSpeed = walkSpeed;
+        // rotation
+        static constexpr double rotSpeedWalk  = 3 * PI / 180;
+        static constexpr double rotSpeedRun   = 5 * PI / 180;
+
+        // field of view
+        static constexpr double fovWalk = 60 * PI / 180;
+        static constexpr double fovRun  = 70 * PI / 180;
+        static constexpr double fovStep = 0.03;
+
+        // stats
+        static constexpr double fullStamina = 100.0;
+        static constexpr double fullHealth = 100.0;
+
+        /// members
+
+        double x, y, rot = 0.0; // position
+
+        double moveSpeed = moveSpeedWalk;
+        double rotSpeed  = rotSpeedWalk;
+        double fov       = fovWalk;
+
+        double stamina = fullStamina;
+        double health  = fullHealth;
 
 };

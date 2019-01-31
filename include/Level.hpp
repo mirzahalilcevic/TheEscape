@@ -8,9 +8,9 @@ class Level
 {
     public:
 
-        size_t number;
-        size_t width, height;
-        std::vector<int> levelMap;
+        size_t number; // level number
+        size_t width, height; // map dimensions
+        std::vector<int> levelMap; // data
 
         Level(Player& player)
             : player_(player)

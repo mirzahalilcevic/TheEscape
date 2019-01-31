@@ -3,38 +3,72 @@
 #include "Engine.hpp"
 
 #define PRESSED(key) GetAsyncKeyState(key) & 0x8000
-
-#define MINI_MAP_SCALE 16
-#define PLAYER_SCALE 4
+#define TEXTURE(n) (std::string("Textures/Texture") + std::to_string(n) + ".bmp").c_str()
 
 using namespace std;
 
 Engine::Engine()
 {
-    blackBrush_ = CreateSolidBrush(RGB(0, 0, 0));
-    whiteBrush_ = CreateSolidBrush(RGB(255, 255, 255));
+    // pens
     blackPen_ = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     whitePen_ = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
-    grayPen_ = CreatePen(PS_SOLID, 1, RGB(200, 200, 200));
-    darkGrayPen_ = CreatePen(PS_SOLID, 1, RGB(100, 100, 100));
+    greenPen_ = CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
+
+    // brushes
+    blackBrush_ = CreateSolidBrush(RGB(0, 0, 0));
+    whiteBrush_ = CreateSolidBrush(RGB(255, 255, 255));
+    greenBrush_ = CreateSolidBrush(RGB(0, 255, 0));
 }
 
 Engine::~Engine()
 {
-    DeleteObject(blackBrush_);
-    DeleteObject(whiteBrush_);
+    // pens
     DeleteObject(blackPen_);
     DeleteObject(whitePen_);
-    DeleteObject(grayPen_);
-    DeleteObject(darkGrayPen_);
+    DeleteObject(greenPen_);
+
+    // brushes
+    DeleteObject(blackBrush_);
+    DeleteObject(whiteBrush_);
+    DeleteObject(greenBrush_);
+
+    // bitmaps
+    for (auto bitmap : bitmaps_)
+        DeleteObject(bitmap);
+
+    // textures
+    for (auto hdc : textures_)
+        DeleteDC(hdc);
 }
 
 void Engine::init(HWND hwnd)
 {
+    // window related
     hwnd_ = hwnd;
     GetClientRect(hwnd_, &cRect_);
 
-    level_.load(1);
+    // projection plane
+    projPlaneWidth = cRect_.right;
+    projPlaneHeight = cRect_.bottom;
+    projPlaneWidthHalf = projPlaneWidth / 2;
+
+    // load first level
+    level_.load(2);
+
+    // load bitmaps
+    for (auto i = 0u; i < 5; ++i)
+    {
+        HBITMAP bitmap = (HBITMAP) LoadImage(NULL, TEXTURE(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        bitmaps_.push_back(bitmap);
+    }
+
+    // prepare textures
+    for (auto bitmap : bitmaps_)
+    {
+        HDC hdc = CreateCompatibleDC(NULL);
+        SelectObject(hdc, bitmap);
+        textures_.push_back(hdc);
+    }
 }
 
 void Engine::start()
@@ -43,7 +77,7 @@ void Engine::start()
     DWORD startTime, lastTime;
 
     lastTime = GetTickCount();
-    while (true)
+    while (true) // game loop
     {
         startTime = GetTickCount();
         frameTime_ = startTime - lastTime;
@@ -59,27 +93,45 @@ void Engine::start()
 
         ///
 
-        checkInput();
+        if (gameState_ == GameState::GAME)
+            checkInput();
+
         render();
 
         ///
 
         lastTime = startTime;
-        // frameTime = GetTickCount() - startTime;
-        // if (frameTime < frameDelay)
-        //     Sleep(frameDelay - frameTime);
-
     }
 }
 
 void Engine::handleLButtonDown(int x, int y)
 {
-    ///
+    /// TODO: handle left click
+}
+
+void Engine::handleKeyDown(int key)
+{
+    switch (key)
+    {
+        case 'M': // toggle mini map
+            miniMap_ = !miniMap_;
+            break;
+
+        case VK_ESCAPE: // pause the game
+            gameState_ = (gameState_ == GameState::PAUSE) ? GameState::GAME
+                                                          : GameState::PAUSE;
+            break;
+
+        case VK_SPACE: // action key
+            /// TODO
+            break;
+
+    }
 }
 
 void Engine::checkInput()
 {
-    double dt = frameTime_ / 16;
+    double dt = frameTime_ / 16; // delta time
 
     // walk forward/backwards
     if (PRESSED(VK_UP) || PRESSED('W'))
@@ -98,11 +150,11 @@ void Engine::checkInput()
     // turn left/right
     if (PRESSED(VK_LEFT))
     {
-        player_.rot = fmod(player_.rot - Player::rotSpeed * dt, rot360);
+        player_.rot = fmod(player_.rot - player_.rotSpeed * dt, rot360);
     }
     if (PRESSED(VK_RIGHT))
     {
-        player_.rot = fmod(player_.rot + Player::rotSpeed * dt, rot360);
+        player_.rot = fmod(player_.rot + player_.rotSpeed * dt, rot360);
     }
 
     // strafe left/right
@@ -124,17 +176,29 @@ void Engine::checkInput()
     // run while shift is pressed
     if (PRESSED(VK_SHIFT))
     {
-        player_.moveSpeed = Player::runSpeed;
+        player_.moveSpeed = Player::moveSpeedRun;
+        player_.rotSpeed = Player::rotSpeedRun;
+
+        // fov effect
+        if (player_.fov < Player::fovRun)
+            player_.fov += Player::fovStep * dt;
+
     }
     else
     {
-        player_.moveSpeed = Player::walkSpeed;
+        player_.moveSpeed = Player::moveSpeedWalk;
+        player_.rotSpeed = Player::rotSpeedWalk;
+
+        // fov effect
+        if (player_.fov > Player::fovWalk)
+            player_.fov -= Player::fovStep * dt;
+
     }
 }
 
 void Engine::updatePlayerPos(double x, double y)
 {
-    // TODO: implement collision offset
+    /// TODO: implement collision offset
 
     if (level_.levelMap[level_.height * (int) player_.y + (int) x] == 0)
         player_.x = x;
@@ -148,93 +212,137 @@ void Engine::render()
 {
     HDC hdc = GetDC(hwnd_);
 
+    // prepare for double buffering
     HDC hdcMem = CreateCompatibleDC(hdc);
     HBITMAP hbmp = CreateCompatibleBitmap(hdc, cRect_.right, cRect_.bottom);
     HBITMAP hbmpOld = (HBITMAP) SelectObject(hdcMem, hbmp);
 
+    /// rendering
+
+    switch (gameState_)
+    {
+        case GameState::MENU:
+            /// TODO: main menu
+            break;
+
+        case GameState::GAME:
+
+            castRays(hdcMem);
+
+            if (miniMap_)
+                drawMiniMap(hdcMem);
+
+            break;
+
+        case GameState::PAUSE:
+            /// TODO: pause screen
+            break;
+
+    }
+
     ///
 
-    // drawMiniMap(hdcMem);
-    castRays(hdcMem);
-
-    ///
-
-    BitBlt(hdc, 0, 0, cRect_.right, cRect_.bottom, hdcMem, 0, 0, SRCCOPY);
+    BitBlt(hdc, 0, 0, cRect_.right, cRect_.bottom,
+           hdcMem, 0, 0, SRCCOPY);
     SelectObject(hdcMem, hbmpOld);
 
     DeleteDC(hdcMem);
     DeleteObject(hbmp);
-    DeleteObject(hbmpOld);
 
     ReleaseDC(hwnd_, hdc);
 }
 
 void Engine::drawMiniMap(HDC hdc)
 {
-    SelectObject(hdc, whiteBrush_);
-    SelectObject(hdc, whitePen_);
-    Rectangle(hdc, 0, 0, cRect_.right, cRect_.bottom);
-
-    int x, y;
+    size_t x, y;
 
     // mini map
-    SelectObject(hdc, blackBrush_);
+    SelectObject(hdc, blackPen_);
+    SelectObject(hdc, whiteBrush_);
     for (auto i = 0u; i < level_.height; ++i)
     {
         for (auto j = 0u; j < level_.width; ++j)
         {
-            if (level_.levelMap[level_.height * i + j] > 0)
+            if (level_.levelMap[level_.height * i + j])
             {
-                x = j * MINI_MAP_SCALE;
-                y = i * MINI_MAP_SCALE;
-                Rectangle(hdc, x, y, x + MINI_MAP_SCALE, y + MINI_MAP_SCALE);
+                x = j * miniMapScale;
+                y = i * miniMapScale;
+                Rectangle(hdc, x, y,
+                          x + miniMapScale, y + miniMapScale);
             }
         }
     }
 
     // player
-    x = player_.x * MINI_MAP_SCALE;
-    y = player_.y * MINI_MAP_SCALE;
-    Rectangle(hdc, x - PLAYER_SCALE, y - PLAYER_SCALE,
-              x + PLAYER_SCALE, y + PLAYER_SCALE);
+    SelectObject(hdc, greenBrush_);
+    x = player_.x * miniMapScale;
+    y = player_.y * miniMapScale;
+    Rectangle(hdc, x - miniMapScale / 2, y - miniMapScale / 2,
+              x + miniMapScale / 2, y + miniMapScale / 2);
 
     // rotation indicator
-    // SelectObject(hdc, blackPen_);
-    // MoveToEx(hdc, x, y, NULL);
-    // x = 2 * MINI_MAP_SCALE * cos(player_.rot) + x;
-    // y = 2 * MINI_MAP_SCALE * sin(player_.rot) + y;
-    // LineTo(hdc, x, y);
+    SelectObject(hdc, greenPen_);
+    MoveToEx(hdc, x, y, NULL);
+    x = 2 * miniMapScale * cos(player_.rot) + x;
+    y = 2 * miniMapScale * sin(player_.rot) + y;
+    LineTo(hdc, x, y);
 }
 
-void Engine::castRays(HDC hdc)
+void Engine::castRays(HDC hdc) /// ray casting algorithm
 {
+    HDC hdcTex;
+
+    double viewDistance, angleIncrement;
+
     double x, y;
     double dX, dY;
+
     double sine, cosine, slope;
+
     double vDistance, hDistance, distance;
+
     double fishbowl;
     double projDistance;
 
+    double yTexSrc, xTexSrc, texSrc;
+
     bool up, left;
     bool hHit, vHit;
-    size_t mapX, mapY;
-    size_t y1, y2;
 
-    double angle = player_.rot - Player::fov / 2;
-    for (auto i = 0u; i < projPlaneWidth; ++i, angle = fmod(angle + angleIncrement, rot360))
+    size_t mapY, mapX;
+    size_t offset;
+
+    int hTex, vTex, tex;
+
+    double fovHalf = player_.fov / 2.0;
+
+    viewDistance = projPlaneWidthHalf / tan(fovHalf);
+    angleIncrement = player_.fov / projPlaneWidth;
+
+    double angle = player_.rot - fovHalf;
+    for (auto i = 0u; i < projPlaneWidth; ++i,
+         angle = fmod(angle + angleIncrement, rot360))
     {
         hHit = false;
         vHit = false;
 
-        up = (angle < 0.0 && angle > -PI) || (angle > PI && angle < rot360);
-        left = (angle > rot90 && angle < rot270) || (angle < -rot90 && angle > -rot270);
+        // determine which direction the angle is facing
 
+        up = (angle < 0.0 && angle > -PI)
+            || (angle > PI && angle < rot360);
+
+        left = (angle > rot90 && angle < rot270)
+            || (angle < -rot90 && angle > -rot270);
+
+        // calculate sine, cosine and tangent
         sine = sin(angle);
         cosine = cos(angle);
         slope = sine / cosine;
+
+        // used to remove the unwanted 'fishbowl' effect
         fishbowl = cos(player_.rot - angle);
 
-        /// horizontal intersection
+        /// calculate horizontal intersection distance
 
         dY = up ? -1.0 : 1.0;
         dX = dY / slope;
@@ -247,10 +355,11 @@ void Engine::castRays(HDC hdc)
             mapY = y + (up ? -1.0 : 0.0);
             mapX = x;
 
-            if (level_.levelMap[level_.height * mapY + mapX])
+            if ((hTex = level_.levelMap[level_.height * mapY + mapX]))
             {
                 hHit = true;
                 hDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
+                xTexSrc = x - mapX;
                 break;
             }
 
@@ -258,7 +367,7 @@ void Engine::castRays(HDC hdc)
             x += dX;
         }
 
-        /// vertical intersection
+        /// calculate vertical intersection distance
 
         dX = left ? -1.0 : 1.0;
         dY = dX * slope;
@@ -271,10 +380,11 @@ void Engine::castRays(HDC hdc)
             mapX = x + (left ? -1.0 : 0.0);
             mapY = y;
 
-            if (level_.levelMap[level_.height * mapY + mapX])
+            if ((vTex = level_.levelMap[level_.height * mapY + mapX]))
             {
                 vHit = true;
                 vDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
+                yTexSrc = y - mapY;
                 break;
             }
 
@@ -282,35 +392,26 @@ void Engine::castRays(HDC hdc)
             y += dY;
         }
 
+        /// choose the closest distance
+
         if (hHit && vHit)
-            distance = hDistance < vDistance ? (SelectObject(hdc, grayPen_), hDistance)
-                                             : (SelectObject(hdc, darkGrayPen_), vDistance);
+            distance = hDistance < vDistance
+                       ? (tex = hTex, texSrc = xTexSrc, offset = 0, hDistance)
+                       : (tex = vTex, texSrc = yTexSrc, offset = texSize, vDistance);
         else if (hHit)
-            (SelectObject(hdc, grayPen_), distance = hDistance);
+            (tex = hTex, texSrc = xTexSrc, offset = 0, distance = hDistance);
         else if (vHit)
-            (SelectObject(hdc, darkGrayPen_), distance = vDistance);
+            (tex = vTex, texSrc = yTexSrc, offset = texSize, distance = vDistance);
         else
             continue;
 
         distance = sqrt(distance) * fishbowl;
-
-        /// draw
-        /*
-        int lineX, lineY;
-        int playerX = MINI_MAP_SCALE * player_.x;
-        int playerY = MINI_MAP_SCALE * player_.y;
-        SelectObject(hdc, grayPen_);
-        MoveToEx(hdc, playerX, playerY, NULL);
-        lineX = MINI_MAP_SCALE * distance * cosine + playerX;
-        lineY = MINI_MAP_SCALE * distance * sine + playerY;
-        LineTo(hdc, lineX, lineY);
-        */
-
         projDistance = viewDistance / distance;
-        y1 = (projPlaneHeight - projDistance) / 2;
-        y2 = y1 + projDistance;
 
-        MoveToEx(hdc, i, y1, NULL);
-        LineTo(hdc, i, y2);
+        /// map texture to projection plane
+
+        hdcTex = textures_[tex - 1];
+        StretchBlt(hdc, i, (projPlaneHeight - projDistance) / 2.0, 1, projDistance,
+                   hdcTex, offset + texSrc * texSize, 0, 1, texSize, SRCCOPY);
     }
 }

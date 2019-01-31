@@ -22,10 +22,12 @@
 				<Option type="0" />
 				<Option compiler="gcc" />
 				<Compiler>
+					<Add option="-flto" />
 					<Add directory="include" />
 				</Compiler>
 				<Linker>
 					<Add option="-O3" />
+					<Add option="-flto" />
 					<Add option="-s" />
 				</Linker>
 			</Target>
