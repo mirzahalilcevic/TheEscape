@@ -113,6 +113,9 @@ void Engine::handleKeyDown(int key)
 {
     switch (key)
     {
+        case 'F': // toggle fps
+            fps_ = !fps_;
+            break;
         case 'M': // toggle mini map
             miniMap_ = !miniMap_;
             break;
@@ -210,6 +213,8 @@ void Engine::updatePlayerPos(double x, double y)
 
 void Engine::render()
 {
+    static int counter = 0;
+
     HDC hdc = GetDC(hwnd_);
 
     // prepare for double buffering
@@ -231,6 +236,21 @@ void Engine::render()
 
             if (miniMap_)
                 drawMiniMap(hdcMem);
+
+            if (fps_)
+            {
+                static string fps;
+
+                if (!counter)
+                {
+                    string out = to_string(1000.0 / frameTime_);
+                    if (out != "inf")
+                        fps = out;
+                }
+
+                TextOut(hdcMem, cRect_.right - 60, 20, fps.c_str(), 5);
+                counter = (counter + 1) % 10;
+            }
 
             break;
 

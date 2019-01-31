@@ -84,6 +84,7 @@ class Engine
 
         // flags
         bool miniMap_ = false;
+        bool fps_ = false;
         GameState gameState_ = GameState::GAME;
 
         /// methods
