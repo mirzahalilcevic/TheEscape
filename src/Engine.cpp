@@ -3,7 +3,12 @@
 #include "Engine.hpp"
 
 #define PRESSED(key) GetAsyncKeyState(key) & 0x8000
-#define TEXTURE(n) (std::string("Textures/Texture") + std::to_string(n) + ".bmp").c_str()
+
+#define TEXTURE(n)    ("Textures/Texture" + std::to_string(n) + ".bmp").c_str()
+#define SPRITE(n)     ("Sprites/Sprite" + std::to_string(n) + ".bmp").c_str()
+#define SPRITEMASK(n) ("Sprites/Sprite" + std::to_string(n) + "Mask.bmp").c_str()
+
+#define MS_PER_UPDATE 16
 
 using namespace std;
 
@@ -12,12 +17,20 @@ Engine::Engine()
     // pens
     blackPen_ = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
     whitePen_ = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+    darkGrayPen_ = CreatePen(PS_SOLID, 1, RGB(50, 50, 50));
+    lightGrayPen_ = CreatePen(PS_SOLID, 1, RGB(100, 100, 100));
+    redPen_ = CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
     greenPen_ = CreatePen(PS_SOLID, 1, RGB(0, 255, 0));
+    bluePen_ = CreatePen(PS_SOLID, 1, RGB(0, 0, 255));
 
     // brushes
     blackBrush_ = CreateSolidBrush(RGB(0, 0, 0));
     whiteBrush_ = CreateSolidBrush(RGB(255, 255, 255));
+    darkGrayBrush_ = CreateSolidBrush(RGB(50, 50, 50));
+    lightGrayBrush_ = CreateSolidBrush(RGB(100, 100, 100));
+    redBrush_ = CreateSolidBrush(RGB(255, 0, 0));
     greenBrush_ = CreateSolidBrush(RGB(0, 255, 0));
+    blueBrush_ = CreateSolidBrush(RGB(0, 0, 255));
 }
 
 Engine::~Engine()
@@ -25,12 +38,24 @@ Engine::~Engine()
     // pens
     DeleteObject(blackPen_);
     DeleteObject(whitePen_);
+    DeleteObject(lightGrayPen_);
+    DeleteObject(darkGrayPen_);
+    DeleteObject(redPen_);
     DeleteObject(greenPen_);
+    DeleteObject(bluePen_);
 
     // brushes
     DeleteObject(blackBrush_);
     DeleteObject(whiteBrush_);
+    DeleteObject(darkGrayBrush_);
+    DeleteObject(lightGrayBrush_);
+    DeleteObject(redBrush_);
     DeleteObject(greenBrush_);
+    DeleteObject(blueBrush_);
+
+    // buffer
+    DeleteDC(memoryDC_);
+    DeleteObject(memoryBitmap_);
 
     // bitmaps
     for (auto bitmap : bitmaps_)
@@ -39,48 +64,80 @@ Engine::~Engine()
     // textures
     for (auto hdc : textures_)
         DeleteDC(hdc);
+
+    // sprites
+    for (auto hdc : sprites_)
+        DeleteDC(hdc);
+    for (auto hdc : spriteMasks_)
+        DeleteDC(hdc);
+
 }
 
 void Engine::init(HWND hwnd)
 {
+    HDC screenDC = GetWindowDC(hwnd);
+
     // window related
     hwnd_ = hwnd;
-    GetClientRect(hwnd_, &cRect_);
+    GetClientRect(hwnd, &cRect_);
+
+    // buffer
+    memoryDC_ = CreateCompatibleDC(screenDC);
+    memoryBitmap_ = CreateCompatibleBitmap(screenDC, cRect_.right, cRect_.bottom);
+    SelectObject(memoryDC_, memoryBitmap_);
 
     // projection plane
     projPlaneWidth = cRect_.right;
     projPlaneHeight = cRect_.bottom;
-    projPlaneWidthHalf = projPlaneWidth / 2;
+
+    // load textures
+    for (auto i = 0u; i < texNum; ++i)
+    {
+        auto bitmap = (HBITMAP) LoadImage(NULL, TEXTURE(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        bitmaps_[i] = bitmap;
+
+        auto hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        textures_[i] = hdc;
+    }
+
+    // load sprites
+    for (auto i = 0u; i < spriteNum; ++i)
+    {
+        auto bitmap = (HBITMAP) LoadImage(NULL, SPRITE(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        bitmaps_[i] = bitmap;
+
+        auto hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        sprites_[i] = hdc;
+
+        bitmap = (HBITMAP) LoadImage(NULL, SPRITEMASK(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        bitmaps_[i] = bitmap;
+
+        hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        spriteMasks_[i] = hdc;
+    }
 
     // load first level
-    level_.load(2);
-
-    // load bitmaps
-    for (auto i = 0u; i < 5; ++i)
-    {
-        HBITMAP bitmap = (HBITMAP) LoadImage(NULL, TEXTURE(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-        bitmaps_.push_back(bitmap);
-    }
-
-    // prepare textures
-    for (auto bitmap : bitmaps_)
-    {
-        HDC hdc = CreateCompatibleDC(NULL);
-        SelectObject(hdc, bitmap);
-        textures_.push_back(hdc);
-    }
+    level_.load(1);
 }
 
 void Engine::start()
 {
     MSG message;
-    DWORD startTime, lastTime;
 
-    lastTime = GetTickCount();
-    while (true) // game loop
+    DWORD currentTime;
+    DWORD previousTime = GetTickCount();
+    DWORD lag = 0;
+
+    /// game loop
+    while (true)
     {
-        startTime = GetTickCount();
-        frameTime_ = startTime - lastTime;
+        currentTime = GetTickCount();
+        frameTime = currentTime - previousTime;
+        previousTime = currentTime;
+        lag += frameTime;
 
         if (PeekMessage(&message, NULL, 0, 0, PM_REMOVE))
         {
@@ -91,19 +148,22 @@ void Engine::start()
             DispatchMessage(&message);
         }
 
-        ///
+        checkInput();
 
-        if (gameState_ == GameState::GAME)
-            checkInput();
+        while (lag >= MS_PER_UPDATE)
+        {
+            update();
+            lag -= MS_PER_UPDATE;
+        }
 
         render();
-
-        ///
-
-        lastTime = startTime;
     }
 }
 
+void Engine::handleMouseMove(int x, int y)
+{
+    /// TODO: handle mouse move
+}
 void Engine::handleLButtonDown(int x, int y)
 {
     /// TODO: handle left click
@@ -113,20 +173,22 @@ void Engine::handleKeyDown(int key)
 {
     switch (key)
     {
-        case 'F': // toggle fps
+        case 'F': // toggle fps indicator
             fps_ = !fps_;
             break;
+
         case 'M': // toggle mini map
             miniMap_ = !miniMap_;
             break;
 
         case VK_ESCAPE: // pause the game
-            gameState_ = (gameState_ == GameState::PAUSE) ? GameState::GAME
+            gameState_ = (gameState_ == GameState::PAUSE) ? GameState::RUNNING
                                                           : GameState::PAUSE;
             break;
 
         case VK_SPACE: // action key
             /// TODO
+            level_.load(2);
             break;
 
     }
@@ -134,124 +196,106 @@ void Engine::handleKeyDown(int key)
 
 void Engine::checkInput()
 {
-    double dt = frameTime_ / 16; // delta time
+    if (gameState_ != GameState::RUNNING)
+        return;
+
+    player_.rotSpeed = 0.0;
+    player_.moveSpeed = 0.0;
+    player_.dir = 0;
+
+    // turn right/left
+    if (PRESSED(VK_RIGHT))
+    {
+        player_.rotSpeed += 1.0;
+    }
+    if (PRESSED(VK_LEFT))
+    {
+        player_.rotSpeed -= 1.0;
+    }
 
     // walk forward/backwards
     if (PRESSED(VK_UP) || PRESSED('W'))
     {
-        auto newX = player_.x + player_.moveSpeed * cos(player_.rot) * dt;
-        auto newY = player_.y + player_.moveSpeed * sin(player_.rot) * dt;
-        updatePlayerPos(newX, newY);
+        player_.moveSpeed += 1.0;
     }
     if (PRESSED(VK_DOWN) || PRESSED('S'))
     {
-        auto newX = player_.x - player_.moveSpeed * cos(player_.rot) * dt;
-        auto newY = player_.y - player_.moveSpeed * sin(player_.rot) * dt;
-        updatePlayerPos(newX, newY);
+        player_.moveSpeed -= 1.0;
     }
 
-    // turn left/right
-    if (PRESSED(VK_LEFT))
-    {
-        player_.rot = fmod(player_.rot - player_.rotSpeed * dt, rot360);
-    }
-    if (PRESSED(VK_RIGHT))
-    {
-        player_.rot = fmod(player_.rot + player_.rotSpeed * dt, rot360);
-    }
-
-    // strafe left/right
-    if (PRESSED('A'))
-    {
-        auto angle = player_.rot - rot90;
-        auto newX = player_.x + player_.moveSpeed * cos(angle) * dt;
-        auto newY = player_.y + player_.moveSpeed * sin(angle) * dt;
-        updatePlayerPos(newX, newY);
-    }
+    // strafe right/left
     if (PRESSED('D'))
     {
-        auto angle = player_.rot + rot90;
-        auto newX = player_.x + player_.moveSpeed * cos(angle) * dt;
-        auto newY = player_.y + player_.moveSpeed * sin(angle) * dt;
-        updatePlayerPos(newX, newY);
+        player_.dir += player_.moveSpeed ? player_.moveSpeed
+                                         : (player_.moveSpeed = 1.0, 2.0);
+    }
+    if (PRESSED('A'))
+    {
+        player_.dir -= player_.moveSpeed ? player_.moveSpeed
+                                         : (player_.moveSpeed = 1.0, 2.0);
     }
 
     // run while shift is pressed
-    if (PRESSED(VK_SHIFT))
-    {
-        player_.moveSpeed = Player::moveSpeedRun;
-        player_.rotSpeed = Player::rotSpeedRun;
-
-        // fov effect
-        if (player_.fov < Player::fovRun)
-            player_.fov += Player::fovStep * dt;
-
-    }
-    else
-    {
-        player_.moveSpeed = Player::moveSpeedWalk;
-        player_.rotSpeed = Player::rotSpeedWalk;
-
-        // fov effect
-        if (player_.fov > Player::fovWalk)
-            player_.fov -= Player::fovStep * dt;
-
-    }
+    player_.running = PRESSED(VK_SHIFT);
 }
 
-void Engine::updatePlayerPos(double x, double y)
+void Engine::update()
 {
-    /// TODO: implement collision offset
+    if (gameState_ != GameState::RUNNING)
+        return;
 
-    if (level_.levelMap[level_.height * (int) player_.y + (int) x] == 0)
-        player_.x = x;
+    player_.rotSpeed *= player_.running ? Player::rotSpeedRun : Player::rotSpeedWalk;
+    player_.moveSpeed *= player_.running ? Player::moveSpeedRun : Player::moveSpeedWalk;
 
-    if (level_.levelMap[level_.height * (int) y + (int) player_.x] == 0)
-        player_.y = y;
+    player_.rot = fmod(player_.rot + player_.rotSpeed, rot360);
+
+    auto newX = player_.x + player_.moveSpeed * cos(player_.rot + rot45 * player_.dir);
+    auto newY = player_.y + player_.moveSpeed * sin(player_.rot + rot45 * player_.dir);
+
+    // collision detection
+
+    constexpr double collisionRadius = 0.2;
+
+    /// TODO: keep distance of 'collisionRadius' between player and walls
+
+    if (level_.levelMap[level_.height * (int) player_.y + (int) newX] == 0)
+        player_.x = newX;
+
+    if (level_.levelMap[level_.height * (int) newY + (int) player_.x] == 0)
+        player_.y = newY;
 
 }
 
 void Engine::render()
 {
-    static int counter = 0;
-
     HDC hdc = GetDC(hwnd_);
-
-    // prepare for double buffering
-    HDC hdcMem = CreateCompatibleDC(hdc);
-    HBITMAP hbmp = CreateCompatibleBitmap(hdc, cRect_.right, cRect_.bottom);
-    HBITMAP hbmpOld = (HBITMAP) SelectObject(hdcMem, hbmp);
-
-    /// rendering
 
     switch (gameState_)
     {
-        case GameState::MENU:
-            /// TODO: main menu
-            break;
+        case GameState::RUNNING:
 
-        case GameState::GAME:
+            SelectObject(memoryDC_, blackPen_);
 
-            castRays(hdcMem);
+            // ceiling
+            SelectObject(memoryDC_, darkGrayBrush_);
+            Rectangle(memoryDC_, 0, 0, cRect_.right, cRect_.bottom / 2);
 
-            if (miniMap_)
-                drawMiniMap(hdcMem);
+            // floor
+            SelectObject(memoryDC_, lightGrayBrush_);
+            Rectangle(memoryDC_, 0, cRect_.bottom / 2, cRect_.right, cRect_.bottom);
+
+            castRays(memoryDC_);
 
             if (fps_)
-            {
-                static string fps;
+                displayFps(memoryDC_);
 
-                if (!counter)
-                {
-                    string out = to_string(1000.0 / frameTime_);
-                    if (out != "inf")
-                        fps = out;
-                }
+            if (miniMap_)
+                drawMiniMap(memoryDC_);
 
-                TextOut(hdcMem, cRect_.right - 60, 20, fps.c_str(), 5);
-                counter = (counter + 1) % 10;
-            }
+            break;
 
+        case GameState::MAINMENU:
+            /// TODO: main menu
             break;
 
         case GameState::PAUSE:
@@ -260,20 +304,14 @@ void Engine::render()
 
     }
 
-    ///
-
-    BitBlt(hdc, 0, 0, cRect_.right, cRect_.bottom,
-           hdcMem, 0, 0, SRCCOPY);
-    SelectObject(hdcMem, hbmpOld);
-
-    DeleteDC(hdcMem);
-    DeleteObject(hbmp);
-
+    BitBlt(hdc, 0, 0, cRect_.right, cRect_.bottom, memoryDC_, 0, 0, SRCCOPY);
     ReleaseDC(hwnd_, hdc);
 }
 
 void Engine::drawMiniMap(HDC hdc)
 {
+    constexpr size_t miniMapScale = 8;
+
     size_t x, y;
 
     // mini map
@@ -287,8 +325,7 @@ void Engine::drawMiniMap(HDC hdc)
             {
                 x = j * miniMapScale;
                 y = i * miniMapScale;
-                Rectangle(hdc, x, y,
-                          x + miniMapScale, y + miniMapScale);
+                Rectangle(hdc, x, y, x + miniMapScale, y + miniMapScale);
             }
         }
     }
@@ -308,9 +345,9 @@ void Engine::drawMiniMap(HDC hdc)
     LineTo(hdc, x, y);
 }
 
-void Engine::castRays(HDC hdc) /// ray casting algorithm
+void Engine::castRays(HDC hdc) // ray casting algorithm
 {
-    HDC hdcTex;
+    SelectObject(hdc, blackPen_);
 
     double viewDistance, angleIncrement;
 
@@ -326,33 +363,28 @@ void Engine::castRays(HDC hdc) /// ray casting algorithm
 
     double yTexSrc, xTexSrc, texSrc;
 
+    double top;
+    double intensity;
+
     bool up, left;
-    bool hHit, vHit;
 
     size_t mapY, mapX;
-    size_t offset;
 
     int hTex, vTex, tex;
+    int offset;
 
-    double fovHalf = player_.fov / 2.0;
+    viewDistance = (projPlaneWidth >> 1) / tan(fov / 2);
+    angleIncrement = fov / projPlaneWidth;
 
-    viewDistance = projPlaneWidthHalf / tan(fovHalf);
-    angleIncrement = player_.fov / projPlaneWidth;
-
-    double angle = player_.rot - fovHalf;
-    for (auto i = 0u; i < projPlaneWidth; ++i,
-         angle = fmod(angle + angleIncrement, rot360))
+    double angle = player_.rot - fov / 2;
+    for (auto i = 0u; i < projPlaneWidth; ++i, angle = fmod(angle + angleIncrement, rot360))
     {
-        hHit = false;
-        vHit = false;
+        hDistance = INFINITE;
+        vDistance = INFINITE;
 
-        // determine which direction the angle is facing
-
-        up = (angle < 0.0 && angle > -PI)
-            || (angle > PI && angle < rot360);
-
-        left = (angle > rot90 && angle < rot270)
-            || (angle < -rot90 && angle > -rot270);
+        // determine in which direction the angle is facing
+        up = (angle < 0.0 && angle > -PI) || (angle > PI && angle < rot360);
+        left = (angle > rot90 && angle < rot270) || (angle < -rot90 && angle > -rot270);
 
         // calculate sine, cosine and tangent
         sine = sin(angle);
@@ -377,7 +409,6 @@ void Engine::castRays(HDC hdc) /// ray casting algorithm
 
             if ((hTex = level_.levelMap[level_.height * mapY + mapX]))
             {
-                hHit = true;
                 hDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
                 xTexSrc = x - mapX;
                 break;
@@ -402,7 +433,6 @@ void Engine::castRays(HDC hdc) /// ray casting algorithm
 
             if ((vTex = level_.levelMap[level_.height * mapY + mapX]))
             {
-                vHit = true;
                 vDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
                 yTexSrc = y - mapY;
                 break;
@@ -414,24 +444,63 @@ void Engine::castRays(HDC hdc) /// ray casting algorithm
 
         /// choose the closest distance
 
-        if (hHit && vHit)
-            distance = hDistance < vDistance
-                       ? (tex = hTex, texSrc = xTexSrc, offset = 0, hDistance)
-                       : (tex = vTex, texSrc = yTexSrc, offset = texSize, vDistance);
-        else if (hHit)
-            (tex = hTex, texSrc = xTexSrc, offset = 0, distance = hDistance);
-        else if (vHit)
-            (tex = vTex, texSrc = yTexSrc, offset = texSize, distance = vDistance);
+        if (hDistance < vDistance)
+        {
+            distance = hDistance;
+            tex = hTex;
+            texSrc = xTexSrc;
+            offset = 0;
+        }
         else
-            continue;
+        {
+            distance = vDistance;
+            tex = vTex;
+            texSrc = yTexSrc;
+            offset = 1;
+        }
 
         distance = sqrt(distance) * fishbowl;
+
+        /// map texture onto the projection plane
+
         projDistance = viewDistance / distance;
+        top = (projPlaneHeight - projDistance) / 2.0;
 
-        /// map texture to projection plane
+        /*
+        // draw black if wall is too far away
+        if (distance > 16.0)
+        {
+            MoveToEx(hdc, i, top, NULL);
+            LineTo(hdc, i, top + projDistance);
+            continue;
+        }
 
-        hdcTex = textures_[tex - 1];
-        StretchBlt(hdc, i, (projPlaneHeight - projDistance) / 2.0, 1, projDistance,
-                   hdcTex, offset + texSrc * texSize, 0, 1, texSize, SRCCOPY);
+        // lighting intensity
+        intensity = 1.0 / distance * 4.0;
+        offset = 9 - (int) (intensity * 10);
+        if (offset < 0) offset = 0;
+        */
+
+        StretchBlt(hdc, i, top, 1, projDistance, textures_[tex - 1],
+                   (offset + texSrc) * texSize, 0, 1, texSize, SRCCOPY);
+
     }
+}
+
+void Engine::displayFps(HDC hdc)
+{
+    static int counter = 0;
+    static string fps;
+
+    if (counter == 0)
+    {
+        string out = to_string(1000.0 / frameTime);
+        if (out.find("inf") == string::npos)
+            fps = "FPS: " + out;
+
+    }
+
+    TextOut(hdc, cRect_.right - 100, 20, fps.c_str(), 10);
+
+    counter = (counter + 1) % 20;
 }

@@ -14,24 +14,22 @@ class Player
         static constexpr double rotSpeedWalk  = 3 * PI / 180;
         static constexpr double rotSpeedRun   = 5 * PI / 180;
 
-        // field of view
-        static constexpr double fovWalk = 60 * PI / 180;
-        static constexpr double fovRun  = 70 * PI / 180;
-        static constexpr double fovStep = 0.03;
-
         // stats
         static constexpr double fullStamina = 100.0;
         static constexpr double fullHealth = 100.0;
 
         /// members
 
-        double x, y, rot = 0.0; // position
-
-        double moveSpeed = moveSpeedWalk;
-        double rotSpeed  = rotSpeedWalk;
-        double fov       = fovWalk;
-
         double stamina = fullStamina;
         double health  = fullHealth;
+
+        double x, y, rot; // position
+
+        double moveSpeed;
+        double rotSpeed;
+
+        int dir;
+
+        bool running;
 
 };

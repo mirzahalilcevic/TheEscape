@@ -4,8 +4,8 @@
     #define UNICODE
 #endif
 
-#define WINDOW_WIDTH  800
-#define WINDOW_HEIGHT 600
+#define WINDOW_WIDTH  854
+#define WINDOW_HEIGHT 480
 
 #include <tchar.h>
 #include <windows.h>
@@ -73,6 +73,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 {
     switch (message)
     {
+        case WM_MOUSEMOVE:
+            ::engine->handleMouseMove(LOWORD(lParam), HIWORD(lParam));
+            break;
         case WM_LBUTTONDOWN:
             ::engine->handleLButtonDown(LOWORD(lParam), HIWORD(lParam));
             break;

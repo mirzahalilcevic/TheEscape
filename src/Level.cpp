@@ -4,7 +4,7 @@
 
 #include "Level.hpp"
 
-#define LEVEL(n) std::string("Levels/Level") + std::to_string(n) + ".txt"
+#define LEVEL(n) ("Levels/Level" + std::to_string(n) + ".txt")
 
 using namespace std;
 
