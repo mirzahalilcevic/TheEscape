@@ -31,6 +31,5 @@ void Level::load(size_t n)
     else
         throw invalid_argument("unable to open file \"" + LEVEL(n) + "\"");
 
-
     levelFile.close();
 }

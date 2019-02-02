@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 
 #include "Engine.hpp"
@@ -9,6 +10,7 @@
 #define SPRITEMASK(n) ("Sprites/Sprite" + std::to_string(n) + "Mask.bmp").c_str()
 
 #define MS_PER_UPDATE 16
+#define DOORSPEED 0.02
 
 using namespace std;
 
@@ -120,7 +122,7 @@ void Engine::init(HWND hwnd)
     }
 
     // load first level
-    level_.load(1);
+    loadLevel(1);
 }
 
 void Engine::start()
@@ -182,16 +184,70 @@ void Engine::handleKeyDown(int key)
             break;
 
         case VK_ESCAPE: // pause the game
-            gameState_ = (gameState_ == GameState::PAUSE) ? GameState::RUNNING
-                                                          : GameState::PAUSE;
+            gameState_ = (gameState_ == GameState::MAINMENU) ? GameState::RUNNING
+                                                             : GameState::MAINMENU;
             break;
 
         case VK_SPACE: // action key
-            /// TODO
-            level_.load(2);
-            break;
+        {
+            size_t mapX = player_.x + 1.0 * cos(player_.rot);
+            size_t mapY = player_.y + 1.0 * sin(player_.rot);
 
+            auto& block = level_.levelMap[level_.height * mapY + mapX];
+            switch (block)
+            {
+                case door:
+                {
+                    SetTimer(hwnd_, (int) mapX | ((int) mapY << 16), 5000, NULL);
+
+                    Door& dr = getDoor(mapX, mapY);
+                    dr.state = opening;
+
+                    break;
+                }
+                case openDoor:
+                {
+                    level_.levelMap[level_.height * mapY + mapX] = door;
+
+                    Door& dr = getDoor(mapX, mapY);
+                    dr.state = closing;
+
+                    break;
+                }
+                case exit:
+
+                    if (level_.number != levelNum)
+                        loadLevel(level_.number + 1);
+                    else
+                        // game finished
+
+                    break;
+
+            }
+            break;
+        }
     }
+}
+
+void Engine::closeDoor(int timerId)
+{
+    KillTimer(hwnd_, timerId);
+
+    auto mapX = LOWORD(timerId);
+    auto mapY = HIWORD(timerId);
+
+    if (mapX == (int) player_.x && mapY == (int) player_.y)
+    {
+        SetTimer(hwnd_, timerId, 500, NULL);
+        return;
+    }
+
+    level_.levelMap[level_.height * mapY + mapX] = door;
+
+    try {
+        Door& dr = getDoor(mapX, mapY);
+        dr.state = closing;
+    } catch (...) {}
 }
 
 void Engine::checkInput()
@@ -258,12 +314,40 @@ void Engine::update()
 
     /// TODO: keep distance of 'collisionRadius' between player and walls
 
-    if (level_.levelMap[level_.height * (int) player_.y + (int) newX] == 0)
+    if (level_.levelMap[level_.height * (int) player_.y + (int) newX] <= 0)
         player_.x = newX;
 
-    if (level_.levelMap[level_.height * (int) newY + (int) player_.x] == 0)
+    if (level_.levelMap[level_.height * (int) newY + (int) player_.x] <= 0)
         player_.y = newY;
 
+    // door animations
+    for (auto& dr : doors_)
+    {
+        switch (dr.state)
+        {
+            case opening:
+                dr.length -= DOORSPEED;
+                if (dr.length < 0.0)
+                {
+                    dr.length = 0.0;
+                    dr.state = open;
+                    level_.levelMap[level_.height * dr.y + dr.x] = openDoor;
+                }
+
+                break;
+
+            case closing:
+                dr.length += DOORSPEED;
+                if (dr.length > 1.0)
+                {
+                    dr.length = 1.0;
+                    dr.state = closed;
+                }
+
+                break;
+
+        }
+    }
 }
 
 void Engine::render()
@@ -286,11 +370,9 @@ void Engine::render()
 
             castRays(memoryDC_);
 
-            if (fps_)
-                displayFps(memoryDC_);
+            if (fps_) displayFps(memoryDC_);
 
-            if (miniMap_)
-                drawMiniMap(memoryDC_);
+            if (miniMap_) drawMiniMap(memoryDC_);
 
             break;
 
@@ -298,7 +380,7 @@ void Engine::render()
             /// TODO: main menu
             break;
 
-        case GameState::PAUSE:
+        case GameState::LEVELEND:
             /// TODO: pause screen
             break;
 
@@ -321,7 +403,7 @@ void Engine::drawMiniMap(HDC hdc)
     {
         for (auto j = 0u; j < level_.width; ++j)
         {
-            if (level_.levelMap[level_.height * i + j])
+            if (level_.levelMap[level_.height * i + j] > 0)
             {
                 x = j * miniMapScale;
                 y = i * miniMapScale;
@@ -407,11 +489,47 @@ void Engine::castRays(HDC hdc) // ray casting algorithm
             mapY = y + (up ? -1.0 : 0.0);
             mapX = x;
 
-            if ((hTex = level_.levelMap[level_.height * mapY + mapX]))
+            if((hTex = level_.levelMap[level_.height * mapY + mapX]) > 0)
             {
-                hDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
-                xTexSrc = x - mapX;
-                break;
+                switch (hTex)
+                {
+                    case door:
+                    case exit:
+                    case entrance:
+                        y += up ? -0.5 : 0.5;
+                        x += dX / 2;
+
+                    default:
+                        hDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
+                        xTexSrc = x - mapX;
+
+                }
+
+                if (hTex == door)
+                {
+                    Door& dr = getDoor(mapX, mapY);
+                    if (xTexSrc > dr.length)
+                    {
+                        // backtrack
+                        y -= up ? -0.5 : 0.5;
+                        x -= dX / 2;
+                    }
+                    else
+                    {
+                        xTexSrc += 1.0 - dr.length;
+                        break;
+                    }
+                }
+                else
+                {
+                    // check if door side
+                    mapY += up ? 1 : -1;
+                    tex = level_.levelMap[level_.height * mapY + mapX];
+                    if (tex == door || tex == exit || tex == entrance || tex < 0)
+                        hTex = doorSide;
+
+                    break;
+                }
             }
 
             y += dY;
@@ -431,11 +549,47 @@ void Engine::castRays(HDC hdc) // ray casting algorithm
             mapX = x + (left ? -1.0 : 0.0);
             mapY = y;
 
-            if ((vTex = level_.levelMap[level_.height * mapY + mapX]))
+            if ((vTex = level_.levelMap[level_.height * mapY + mapX]) > 0)
             {
-                vDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
-                yTexSrc = y - mapY;
-                break;
+                switch (vTex)
+                {
+                    case door:
+                    case exit:
+                    case entrance:
+                        x += left ? -0.5 : 0.5;
+                        y += dY / 2;
+
+                    default:
+                        vDistance = pow(x - player_.x, 2) + pow(y - player_.y, 2);
+                        yTexSrc = y - mapY;
+
+                }
+
+                if (vTex == door)
+                {
+                    Door& dr = getDoor(mapX, mapY);
+                    if (yTexSrc > dr.length)
+                    {
+                        // backtrack
+                        x -= left ? -0.5 : 0.5;
+                        y -= dY / 2;
+                    }
+                    else
+                    {
+                        yTexSrc += 1.0 - dr.length;
+                        break;
+                    }
+                }
+                else
+                {
+                    // check if door side
+                    mapX += left ? 1 : -1;
+                    tex = level_.levelMap[level_.height * mapY + mapX];
+                    if (tex == door || tex == exit || tex == entrance || tex < 0)
+                        vTex = doorSide;
+
+                    break;
+                }
             }
 
             x += dX;
@@ -466,7 +620,6 @@ void Engine::castRays(HDC hdc) // ray casting algorithm
         projDistance = viewDistance / distance;
         top = (projPlaneHeight - projDistance) / 2.0;
 
-        /*
         // draw black if wall is too far away
         if (distance > 16.0)
         {
@@ -475,6 +628,7 @@ void Engine::castRays(HDC hdc) // ray casting algorithm
             continue;
         }
 
+        /*
         // lighting intensity
         intensity = 1.0 / distance * 4.0;
         offset = 9 - (int) (intensity * 10);
@@ -485,6 +639,37 @@ void Engine::castRays(HDC hdc) // ray casting algorithm
                    (offset + texSrc) * texSize, 0, 1, texSize, SRCCOPY);
 
     }
+}
+
+void Engine::loadLevel(size_t number)
+{
+    level_.load(number);
+
+    // load doors
+    doors_.clear();
+    for (auto i = 0u; i < level_.height; ++i)
+    {
+        for (auto j = 0u; j < level_.width; ++j)
+        {
+            if (level_.levelMap[level_.height * i + j] == door)
+                doors_.push_back(Door{i, j});
+
+        }
+    }
+}
+
+Door& Engine::getDoor(size_t x, size_t y)
+{
+    auto it = find_if(doors_.begin(), doors_.end(),
+        [=](const Door& door)
+        {
+            return x == door.x && y == door.y;
+        });
+
+    if (it == doors_.end())
+        throw invalid_argument("door not found");
+
+    return *it;
 }
 
 void Engine::displayFps(HDC hdc)

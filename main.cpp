@@ -82,6 +82,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         case WM_KEYDOWN:
             ::engine->handleKeyDown(wParam);
             break;
+        case WM_TIMER:
+            ::engine->closeDoor(wParam);
+            break;
         case WM_DESTROY:
             PostQuitMessage (0);
             break;

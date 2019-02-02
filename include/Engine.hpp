@@ -24,7 +24,14 @@ enum class GameState
 {
     RUNNING,
     MAINMENU,
-    PAUSE
+    LEVELEND
+};
+
+struct Door
+{
+    size_t y, x;
+    int state = 0;
+    double length = 1.0;
 };
 
 class Engine
@@ -41,11 +48,25 @@ class Engine
         static constexpr double rot360 = 360 * PI / 180;
 
         // number of resources
-        static constexpr size_t texNum = 5;
+        static constexpr size_t texNum = 9;
         static constexpr size_t spriteNum = 1;
+        static constexpr size_t levelNum = 2;
+
+        // IDs
+        static constexpr int door = 6;
+        static constexpr int doorSide = 9;
+        static constexpr int openDoor = -1;
+        static constexpr int exit = 7;
+        static constexpr int entrance = 8;
 
         // texture dimensions
         static constexpr size_t texSize = 64;
+
+        // door states
+        static constexpr int closed = 0;
+        static constexpr int opening = 1;
+        static constexpr int open = 2;
+        static constexpr int closing = 3;
 
         // projection plane
         size_t projPlaneWidth;
@@ -66,6 +87,9 @@ class Engine
         void handleMouseMove(int, int);
         void handleLButtonDown(int, int);
         void handleKeyDown(int);
+
+        // timer handler
+        void closeDoor(int);
 
 
     private:
@@ -99,6 +123,7 @@ class Engine
         // gameplay related
         Player player_;
         Level level_{player_};
+        std::vector<Door> doors_;
 
         // flags
         bool fps_ = false;
@@ -123,6 +148,8 @@ class Engine
         void drawMiniMap(HDC);
 
         // misc
+        void loadLevel(size_t);
+        Door& getDoor(size_t, size_t);
         void displayFps(HDC);
 
 };
