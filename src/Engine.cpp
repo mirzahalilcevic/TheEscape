@@ -89,8 +89,15 @@ void Engine::init(HWND hwnd)
     SelectObject(memoryDC_, memoryBitmap_);
 
     // projection plane
+
     projPlaneWidth = cRect_.right;
     projPlaneHeight = cRect_.bottom;
+
+    viewDistance_ = (projPlaneWidth >> 1) / tan(fov / 2);
+    angleIncrement_ = fov / projPlaneWidth;
+
+    // projection columns
+    projCols_.resize(projPlaneWidth);
 
     // load textures
     for (auto i = 0u; i < texNum; ++i)
@@ -305,14 +312,18 @@ void Engine::update()
 
     player_.rot = fmod(player_.rot + player_.rotSpeed, rot360);
 
-    auto newX = player_.x + player_.moveSpeed * cos(player_.rot + rot45 * player_.dir);
-    auto newY = player_.y + player_.moveSpeed * sin(player_.rot + rot45 * player_.dir);
+    auto angle = player_.rot + rot45 * player_.dir;
+    auto cosine = cos(angle);
+    auto sine = sin(angle);
+
+    auto newX = player_.x + player_.moveSpeed * cosine;
+    auto newY = player_.y + player_.moveSpeed * sine;
 
     // collision detection
 
     constexpr double collisionRadius = 0.2;
 
-    /// TODO: keep distance of 'collisionRadius' between player and walls
+    /// TODO: keep distance from wall
 
     if (level_.levelMap[level_.height * (int) player_.y + (int) newX] <= 0)
         player_.x = newX;
@@ -320,7 +331,7 @@ void Engine::update()
     if (level_.levelMap[level_.height * (int) newY + (int) player_.x] <= 0)
         player_.y = newY;
 
-    // door animations
+    // door animation fsm
     for (auto& dr : doors_)
     {
         switch (dr.state)
@@ -348,6 +359,62 @@ void Engine::update()
 
         }
     }
+
+    // enemy AI
+    for_each(enemies_.begin(), enemies_.end(),
+        [this](Enemy& enemy)
+        {
+            constexpr double detectionRadius = pow(7.0, 2);
+            constexpr double contactRadius = pow(0.2, 2);
+
+            double angle, newX, newY;
+            double distance = pow(enemy.x - player_.x, 2) + pow(enemy.y - player_.y, 2);
+
+            if (distance < detectionRadius)
+            {
+                angle = atan2(player_.y - enemy.y, player_.x - enemy.x);
+                newX = enemy.x + Enemy::moveSpeed * cos(angle);
+                newY = enemy.y + Enemy::moveSpeed * sin(angle);
+            }
+            else if (distance < contactRadius)
+            {
+                /// TODO: game over
+                return;
+            }
+            else
+            {
+                distance = pow(enemy.x - enemy.startX, 2) + pow(enemy.y - enemy.startY, 2);
+                if (distance > contactRadius)
+                {
+                    // return to start position
+                    angle = atan2(enemy.startY - enemy.y, enemy.startX - enemy.x);
+                    newX = enemy.x + Enemy::moveSpeed * cos(angle);
+                    newY = enemy.y + Enemy::moveSpeed * sin(angle);
+                }
+                else
+                    return;
+
+            }
+
+            // collision detection
+
+            if (level_.levelMap[level_.height * (int) newY + (int) newX] == door)
+            {
+                // open door if it's in the way
+
+                SetTimer(hwnd_, (int) newX | ((int) newY << 16), 5000, NULL);
+
+                Door& dr = getDoor(newX, newY);
+                dr.state = opening;
+            }
+
+            if (level_.levelMap[level_.height * (int) enemy.y + (int) newX] <= 0)
+                enemy.x = newX;
+
+            if (level_.levelMap[level_.height * (int) newY + (int) enemy.x] <= 0)
+                enemy.y = newY;
+
+        });
 }
 
 void Engine::render()
@@ -368,7 +435,7 @@ void Engine::render()
             SelectObject(memoryDC_, lightGrayBrush_);
             Rectangle(memoryDC_, 0, cRect_.bottom / 2, cRect_.right, cRect_.bottom);
 
-            castRays(memoryDC_);
+            drawScene(memoryDC_);
 
             if (fps_) displayFps(memoryDC_);
 
@@ -412,6 +479,18 @@ void Engine::drawMiniMap(HDC hdc)
         }
     }
 
+    // enemies
+    SelectObject(hdc, redBrush_);
+    for_each(enemies_.cbegin(), enemies_.cend(),
+        [&](const Enemy& enemy)
+        {
+            x = enemy.x * miniMapScale;
+            y = enemy.y * miniMapScale;
+            Rectangle(hdc, x - miniMapScale / 2, y - miniMapScale / 2,
+                      x + miniMapScale / 2, y + miniMapScale / 2);
+
+        });
+
     // player
     SelectObject(hdc, greenBrush_);
     x = player_.x * miniMapScale;
@@ -427,39 +506,21 @@ void Engine::drawMiniMap(HDC hdc)
     LineTo(hdc, x, y);
 }
 
-void Engine::castRays(HDC hdc) // ray casting algorithm
+void Engine::castRays() // ray casting algorithm
 {
-    SelectObject(hdc, blackPen_);
-
-    double viewDistance, angleIncrement;
-
     double x, y;
     double dX, dY;
-
     double sine, cosine, slope;
-
-    double vDistance, hDistance, distance;
-
-    double fishbowl;
-    double projDistance;
-
     double yTexSrc, xTexSrc, texSrc;
-
-    double top;
-    double intensity;
-
+    double vDistance, hDistance, distance;
+    double fishbowl;
     bool up, left;
-
     size_t mapY, mapX;
-
     int hTex, vTex, tex;
     int offset;
 
-    viewDistance = (projPlaneWidth >> 1) / tan(fov / 2);
-    angleIncrement = fov / projPlaneWidth;
-
     double angle = player_.rot - fov / 2;
-    for (auto i = 0u; i < projPlaneWidth; ++i, angle = fmod(angle + angleIncrement, rot360))
+    for (auto i = 0u; i < projPlaneWidth; ++i, angle = fmod(angle + angleIncrement_, rot360))
     {
         hDistance = INFINITE;
         vDistance = INFINITE;
@@ -612,31 +673,34 @@ void Engine::castRays(HDC hdc) // ray casting algorithm
             texSrc = yTexSrc;
             offset = 1;
         }
-
         distance = sqrt(distance) * fishbowl;
 
-        /// map texture onto the projection plane
+        projCols_[i] = ProjInfo{i, distance, texSrc, tex, offset};
+    }
+}
 
-        projDistance = viewDistance / distance;
+void Engine::drawScene(HDC hdc)
+{
+    double projDistance, top;
+
+    castRays();
+
+    SelectObject(hdc, blackBrush_);
+    for (const auto& info : projCols_)
+    {
+        projDistance = viewDistance_ / info.distance;
         top = (projPlaneHeight - projDistance) / 2.0;
 
         // draw black if wall is too far away
-        if (distance > 16.0)
+        if (info.distance > 15.0)
         {
-            MoveToEx(hdc, i, top, NULL);
-            LineTo(hdc, i, top + projDistance);
+            MoveToEx(hdc, info.col, top, NULL);
+            LineTo(hdc, info.col, top + projDistance);
             continue;
         }
 
-        /*
-        // lighting intensity
-        intensity = 1.0 / distance * 4.0;
-        offset = 9 - (int) (intensity * 10);
-        if (offset < 0) offset = 0;
-        */
-
-        StretchBlt(hdc, i, top, 1, projDistance, textures_[tex - 1],
-                   (offset + texSrc) * texSize, 0, 1, texSize, SRCCOPY);
+        StretchBlt(hdc, info.col, top, 1, projDistance, textures_[info.tex - 1],
+                   (info.offset + info.texSrc) * texSize, 0, 1, texSize, SRCCOPY);
 
     }
 }

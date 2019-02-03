@@ -18,6 +18,19 @@ void Level::load(size_t n)
         // load player position
         levelFile >> player_.x >> player_.y >> player_.rot;
 
+        // load enemies
+
+        size_t enemyNum;
+        levelFile >> enemyNum;
+
+        enemies_.resize(enemyNum);
+        for (auto i = 0u; i < enemyNum; ++i)
+        {
+            levelFile >> enemies_[i].startX >> enemies_[i].startY;
+            enemies_[i].x = enemies_[i].startX;
+            enemies_[i].y = enemies_[i].startY;
+        }
+
         // load width and height of map
         levelFile >> width >> height;
 

@@ -34,6 +34,16 @@ struct Door
     double length = 1.0;
 };
 
+// used for drawing
+struct ProjInfo
+{
+    unsigned int col;
+    double distance;
+    double texSrc;
+    int tex;
+    int offset;
+};
+
 class Engine
 {
     public:
@@ -121,9 +131,12 @@ class Engine
         HBITMAP memoryBitmap_;
 
         // gameplay related
-        Player player_;
-        Level level_{player_};
+
+        std::vector<Enemy> enemies_;
         std::vector<Door> doors_;
+
+        Player player_;
+        Level level_{player_, enemies_};
 
         // flags
         bool fps_ = false;
@@ -131,6 +144,12 @@ class Engine
         GameState gameState_ = GameState::RUNNING;
 
         // graphics
+
+        double viewDistance_;
+        double angleIncrement_;
+
+        std::vector<ProjInfo> projCols_;
+
         std::array<HBITMAP, texNum + spriteNum * 2> bitmaps_;
         std::array<HDC, texNum> textures_;
         std::array<HDC, spriteNum> sprites_;
@@ -144,12 +163,13 @@ class Engine
 
         // rendering
         void render();
-        void castRays(HDC);
+        void castRays();
+        void drawScene(HDC);
         void drawMiniMap(HDC);
 
         // misc
+        void displayFps(HDC);
         void loadLevel(size_t);
         Door& getDoor(size_t, size_t);
-        void displayFps(HDC);
 
 };
