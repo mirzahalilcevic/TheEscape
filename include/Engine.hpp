@@ -41,7 +41,7 @@ struct ProjInfo
     double distance;
     double texSrc;
     int tex;
-    int offset;
+    int xOffset, yOffset;
 };
 
 class Engine

@@ -8,8 +8,10 @@ struct Enemy
 {
     static constexpr double moveSpeed = 0.06;
 
-    double startX, startY;
-    double x, y;
+    double startX, startY, startRot;
+    double x, y, rot;
+
+    int offset;
 };
 
 class Level

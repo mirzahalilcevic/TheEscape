@@ -16,12 +16,11 @@ class Player
 
         // stats
         static constexpr double fullStamina = 100.0;
-        static constexpr double fullHealth = 100.0;
 
         /// members
 
+        int lives = 3;
         double stamina = fullStamina;
-        double health  = fullHealth;
 
         double x, y, rot; // position
 

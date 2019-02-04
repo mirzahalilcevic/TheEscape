@@ -4,8 +4,8 @@
     #define UNICODE
 #endif
 
-#define WINDOW_WIDTH  854
-#define WINDOW_HEIGHT 480
+#define WINDOW_WIDTH  1024
+#define WINDOW_HEIGHT 576
 
 #include <tchar.h>
 #include <windows.h>

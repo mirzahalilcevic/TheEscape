@@ -304,6 +304,9 @@ void Engine::checkInput()
 
 void Engine::update()
 {
+    static size_t animationCounter = 0;
+    ++animationCounter;
+
     if (gameState_ != GameState::RUNNING)
         return;
 
@@ -365,34 +368,49 @@ void Engine::update()
         [this](Enemy& enemy)
         {
             constexpr double detectionRadius = pow(7.0, 2);
-            constexpr double contactRadius = pow(0.2, 2);
+            constexpr double contactRadius = pow(0.5, 2);
+            constexpr size_t animationSpeed = 8;
 
-            double angle, newX, newY;
+            double newX, newY;
             double distance = pow(enemy.x - player_.x, 2) + pow(enemy.y - player_.y, 2);
 
-            if (distance < detectionRadius)
+            if (distance < contactRadius)
             {
-                angle = atan2(player_.y - enemy.y, player_.x - enemy.x);
-                newX = enemy.x + Enemy::moveSpeed * cos(angle);
-                newY = enemy.y + Enemy::moveSpeed * sin(angle);
-            }
-            else if (distance < contactRadius)
-            {
-                /// TODO: game over
+                if (--player_.lives == 0)
+                {
+                    /// TODO: game over
+                }
+                level_.load(level_.number);
                 return;
+            }
+            else if (distance < detectionRadius)
+            {
+                if (animationCounter % animationSpeed == 0)
+                    enemy.offset = enemy.offset % 4 + 1;
+
+                enemy.rot = atan2(player_.y - enemy.y, player_.x - enemy.x);
+                newX = enemy.x + Enemy::moveSpeed * cos(enemy.rot);
+                newY = enemy.y + Enemy::moveSpeed * sin(enemy.rot);
             }
             else
             {
                 distance = pow(enemy.x - enemy.startX, 2) + pow(enemy.y - enemy.startY, 2);
                 if (distance > contactRadius)
                 {
+                    if (animationCounter % animationSpeed == 0)
+                        enemy.offset = enemy.offset % 4 + 1;
+
                     // return to start position
-                    angle = atan2(enemy.startY - enemy.y, enemy.startX - enemy.x);
-                    newX = enemy.x + Enemy::moveSpeed * cos(angle);
-                    newY = enemy.y + Enemy::moveSpeed * sin(angle);
+                    enemy.rot = atan2(enemy.startY - enemy.y, enemy.startX - enemy.x);
+                    newX = enemy.x + Enemy::moveSpeed * cos(enemy.rot);
+                    newY = enemy.y + Enemy::moveSpeed * sin(enemy.rot);
                 }
                 else
+                {
+                    enemy.offset = 0;
+                    enemy.rot = enemy.startRot;
                     return;
+                }
 
             }
 
@@ -675,33 +693,93 @@ void Engine::castRays() // ray casting algorithm
         }
         distance = sqrt(distance) * fishbowl;
 
-        projCols_[i] = ProjInfo{i, distance, texSrc, tex, offset};
+        projCols_[i] = ProjInfo{i, distance, texSrc, tex, offset, 0};
     }
 }
 
 void Engine::drawScene(HDC hdc)
 {
-    double projDistance, top;
-
     castRays();
 
+    vector<ProjInfo> graphics;
+    copy(projCols_.cbegin(), projCols_.cend(), back_inserter(graphics));
+
+    for_each(enemies_.cbegin(), enemies_.cend(),
+        [this, &graphics](const Enemy& enemy)
+        {
+            unsigned int col = -1u;
+            double angle = atan2(enemy.y - player_.y, enemy.x - player_.x);
+
+            double rot = player_.rot - fov / 2;
+            for (auto i = 0u; i < projPlaneWidth; ++i)
+            {
+                if (rot >= angle)
+                {
+                    col = i;
+                    break;
+                }
+
+                rot = rot + angleIncrement_;
+            }
+            if (col == -1u)
+                return;
+
+            double distance = pow(enemy.x - player_.x, 2) + pow(enemy.y - player_.y, 2);
+            distance = sqrt(distance) * cos(player_.rot - angle);
+
+            if (distance < 0.5)
+                return;
+
+            double xOffset = fmod((enemy.rot - angle) + PI, rot360);
+            xOffset = fmod(xOffset / rot45 + 0.5, 8);
+
+            auto&& info = ProjInfo{col, distance, 0.0, 0, (int) xOffset, enemy.offset};
+            graphics.push_back(std::move(info));
+        });
+
+    // sort by distance
+    sort(graphics.begin(), graphics.end(),
+        [](const ProjInfo& info1, const ProjInfo& info2)
+        {
+            return info1.distance > info2.distance;
+        });
+
     SelectObject(hdc, blackBrush_);
-    for (const auto& info : projCols_)
+
+    double projDistance, top;
+    for (const auto& info : graphics)
     {
         projDistance = viewDistance_ / info.distance;
         top = (projPlaneHeight - projDistance) / 2.0;
 
         // draw black if wall is too far away
-        if (info.distance > 15.0)
+        if (info.distance > 17.0)
         {
-            MoveToEx(hdc, info.col, top, NULL);
-            LineTo(hdc, info.col, top + projDistance);
+            if (info.tex)
+            {
+                MoveToEx(hdc, info.col, top, NULL);
+                LineTo(hdc, info.col, top + projDistance);
+            }
             continue;
         }
 
-        StretchBlt(hdc, info.col, top, 1, projDistance, textures_[info.tex - 1],
-                   (info.offset + info.texSrc) * texSize, 0, 1, texSize, SRCCOPY);
+        if (info.tex) // wall
+        {
+            StretchBlt(hdc, info.col, top, 1, projDistance, textures_[info.tex - 1],
+                       (info.xOffset + info.texSrc) * texSize, 0, 1, texSize, SRCCOPY);
 
+        }
+        else // sprite
+        {
+            StretchBlt(hdc, info.col - projDistance / 2, top, projDistance, projDistance,
+                       spriteMasks_[0], info.xOffset * texSize, info.yOffset * texSize,
+                       texSize, texSize, SRCAND);
+
+            StretchBlt(hdc, info.col - projDistance / 2, top, projDistance, projDistance,
+                       sprites_[0], info.xOffset * texSize, info.yOffset * texSize,
+                       texSize, texSize, SRCPAINT);
+
+        }
     }
 }
 
