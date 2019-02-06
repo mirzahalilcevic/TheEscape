@@ -5,7 +5,7 @@
 #endif
 
 #define WINDOW_WIDTH  1024
-#define WINDOW_HEIGHT 576
+#define WINDOW_HEIGHT  576
 
 #include <tchar.h>
 #include <windows.h>
@@ -34,7 +34,16 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     wincl.style = CS_DBLCLKS;
     wincl.cbSize = sizeof (WNDCLASSEX);
     wincl.hIcon = LoadIcon (NULL, IDI_APPLICATION);
-    wincl.hIconSm = LoadIcon (NULL, IDI_APPLICATION);
+    wincl.hIconSm = (HICON) LoadImage(
+        NULL,
+        "escape.ico",
+        IMAGE_ICON,
+        0,
+        0,
+        LR_LOADFROMFILE
+        | LR_DEFAULTSIZE
+        | LR_SHARED
+    );
     wincl.hCursor = LoadCursor (NULL, IDC_ARROW);
     wincl.lpszMenuName = NULL;
     wincl.cbClsExtra = 0;

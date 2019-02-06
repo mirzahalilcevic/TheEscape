@@ -10,7 +10,7 @@
 #define SPRITEMASK(n) ("Sprites/Sprite" + std::to_string(n) + "Mask.bmp").c_str()
 
 #define MS_PER_UPDATE 16
-#define DOORSPEED 0.02
+#define DOORSPEED 0.03
 
 using namespace std;
 
@@ -73,6 +73,9 @@ Engine::~Engine()
     for (auto hdc : spriteMasks_)
         DeleteDC(hdc);
 
+    // background
+    DeleteDC(background_);
+
 }
 
 void Engine::init(HWND hwnd)
@@ -128,8 +131,18 @@ void Engine::init(HWND hwnd)
         spriteMasks_[i] = hdc;
     }
 
+    // load background
+    {
+        auto bitmap = (HBITMAP) LoadImage(NULL, "background.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        bitmaps_[bitmaps_.size() - 1] = bitmap;
+
+        auto hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        background_ = hdc;
+    }
+
     // load first level
-    loadLevel(1);
+    loadLevel(2);
 }
 
 void Engine::start()
@@ -205,6 +218,8 @@ void Engine::handleKeyDown(int key)
             {
                 case door:
                 {
+                    PlaySound("Sounds/door.wav", NULL, SND_ASYNC | SND_FILENAME);
+
                     SetTimer(hwnd_, (int) mapX | ((int) mapY << 16), 5000, NULL);
 
                     Door& dr = getDoor(mapX, mapY);
@@ -214,6 +229,8 @@ void Engine::handleKeyDown(int key)
                 }
                 case openDoor:
                 {
+                    PlaySound("Sounds/door.wav", NULL, SND_ASYNC | SND_FILENAME);
+
                     level_.levelMap[level_.height * mapY + mapX] = door;
 
                     Door& dr = getDoor(mapX, mapY);
@@ -249,11 +266,18 @@ void Engine::closeDoor(int timerId)
         return;
     }
 
-    level_.levelMap[level_.height * mapY + mapX] = door;
-
     try {
+
         Door& dr = getDoor(mapX, mapY);
         dr.state = closing;
+
+        auto& block = level_.levelMap[level_.height * mapY + mapX];
+        if (block != door)
+        {
+            PlaySound("Sounds/door.wav", NULL, SND_ASYNC | SND_FILENAME);
+            block = door;
+        }
+
     } catch (...) {}
 }
 
@@ -304,11 +328,40 @@ void Engine::checkInput()
 
 void Engine::update()
 {
+    static bool firstTime = true;
+
     static size_t animationCounter = 0;
     ++animationCounter;
 
     if (gameState_ != GameState::RUNNING)
         return;
+
+    // stamina
+    if (player_.running && player_.moveSpeed != 0.0)
+    {
+        player_.stamina -= 0.8;
+        if (player_.stamina < 0.0)
+        {
+            player_.running = false;
+            player_.stamina = 0.0;
+        }
+        else if (player_.stamina < 1.0)
+        {
+            if (firstTime)
+            {
+                PlaySound("Sounds/sigh.wav", NULL, SND_ASYNC | SND_FILENAME);
+                firstTime = false;
+            }
+        }
+    }
+    else
+    {
+        firstTime = true;
+        player_.stamina += 0.5;
+        if (player_.stamina > Player::fullStamina)
+            player_.stamina = Player::fullStamina;
+
+    }
 
     player_.rotSpeed *= player_.running ? Player::rotSpeedRun : Player::rotSpeedWalk;
     player_.moveSpeed *= player_.running ? Player::moveSpeedRun : Player::moveSpeedWalk;
@@ -326,38 +379,22 @@ void Engine::update()
 
     constexpr double collisionRadius = 0.2;
 
-    /// TODO: keep distance from wall
+    double colRad = player_.moveSpeed < 0.0 ? -collisionRadius : collisionRadius;
 
-     auto block = level_.height * (int) player_.y + (int) player_.x;
+    bool up = (angle < 0.0 && angle > -PI) || (angle > PI && angle < rot360);
+    bool left = (angle > rot90 && angle < rot270) || (angle < -rot90 && angle > -rot270);
 
-    auto C  = level_.levelMap[block]                    <= 0; // current block - free space
-    auto L  = level_.levelMap[block - 1]                 > 0; // left block - wall
-    auto R  = level_.levelMap[block + 1]                 > 0; // right block - wall
-    auto T  = level_.levelMap[block - level_.height]     > 0; // ...
-    auto D  = level_.levelMap[block + level_.height]     > 0;
-    auto LT = level_.levelMap[block - level_.height - 1] > 0;
-    auto RT = level_.levelMap[block - level_.height + 1] > 0;
-    auto LD = level_.levelMap[block + level_.height - 1] > 0;
-    auto RD = level_.levelMap[block + level_.height + 1] > 0;
-    auto blockNumberH = block%level_.height;
-    auto blockNumberV = block/level_.height;
-    auto newXRight = newX + collisionRadius;
-    auto newXLeft = newX - collisionRadius;
-    auto newYTop = newY - collisionRadius;
-    auto newYDown = newY + collisionRadius;
-    auto RCol = newXRight >= (blockNumberH + 1);
-    auto LCol = newXLeft <= blockNumberH;
-    auto TCol = newYTop <= blockNumberV;
-    auto DCol = newYDown >= (blockNumberV + 1);
+    int collisionX = newX + (left ? -colRad : colRad);
+    int collisionY = player_.y + (up ? colRad : -colRad);
 
-    if ((LT && LCol && TCol && !L && !T) || (RT && RCol && TCol && !R && !T) || (LD && LCol && DCol && !L && !D) || (RD && RCol && DCol && !R && !D)) {}
-    else
-    {
-        if ((R && RCol) || (L && LCol)) {}
-        else player_.x = newX;
-        if ((T && TCol) || (D && DCol)) {}
-        else player_.y = newY;
-    }
+    if (level_.levelMap[level_.height * collisionY + collisionX] <= 0)
+        player_.x = newX;
+
+    collisionY = newY + (up ? -colRad : colRad);
+    collisionX = player_.x + (left ? colRad : -colRad);
+
+    if (level_.levelMap[level_.height * collisionY + collisionX] <= 0)
+        player_.y = newY;
 
     // door animation fsm
     for (auto& dr : doors_)
@@ -392,7 +429,9 @@ void Engine::update()
     for_each(enemies_.begin(), enemies_.end(),
         [this](Enemy& enemy)
         {
-            constexpr double detectionRadius = pow(7.0, 2);
+            static bool firstDetect = true;
+
+            constexpr double detectionRadius = pow(5.0, 2);
             constexpr double contactRadius = pow(0.5, 2);
             constexpr size_t animationSpeed = 8;
 
@@ -401,15 +440,27 @@ void Engine::update()
 
             if (distance < contactRadius)
             {
+                PlaySound("Sounds/grunt.wav", NULL, SND_ASYNC | SND_FILENAME);
+                firstDetect = true;
+
                 if (--player_.lives == 0)
                 {
                     /// TODO: game over
                 }
+
                 level_.load(level_.number);
+                player_.stamina = Player::fullStamina;
+
                 return;
             }
             else if (distance < detectionRadius)
             {
+                if (firstDetect)
+                {
+                    PlaySound("Sounds/stop.wav", NULL, SND_ASYNC | SND_FILENAME);
+                    firstDetect = false;
+                }
+
                 if (animationCounter % animationSpeed == 0)
                     enemy.offset = enemy.offset % 4 + 1;
 
@@ -419,8 +470,9 @@ void Engine::update()
             }
             else
             {
+                firstDetect = true;
                 distance = pow(enemy.x - enemy.startX, 2) + pow(enemy.y - enemy.startY, 2);
-                if (distance > contactRadius)
+                if (distance > 0.01)
                 {
                     if (animationCounter % animationSpeed == 0)
                         enemy.offset = enemy.offset % 4 + 1;
@@ -458,6 +510,27 @@ void Engine::update()
                 enemy.y = newY;
 
         });
+
+    // lives
+    for_each(lives_.begin(), lives_.end(),
+        [this](Life& life)
+        {
+            constexpr double contactRadius = pow(1.0, 2);
+
+            if (player_.lives == Player::maxLives)
+                return;
+
+            if (!(life.visible))
+                return;
+
+            double distance = pow(life.x - player_.x, 2) + pow(life.y - player_.y, 2);
+            if (distance < contactRadius)
+            {
+                PlaySound("Sounds/life.wav", NULL, SND_ASYNC | SND_FILENAME);
+                life.visible = false;
+                player_.lives += 1;
+            }
+        });
 }
 
 void Engine::render()
@@ -470,15 +543,11 @@ void Engine::render()
 
             SelectObject(memoryDC_, blackPen_);
 
-            // ceiling
-            SelectObject(memoryDC_, darkGrayBrush_);
-            Rectangle(memoryDC_, 0, 0, cRect_.right, cRect_.bottom / 2);
-
-            // floor
-            SelectObject(memoryDC_, lightGrayBrush_);
-            Rectangle(memoryDC_, 0, cRect_.bottom / 2, cRect_.right, cRect_.bottom);
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, background_, 0, 0, SRCCOPY);
 
             drawScene(memoryDC_);
+
+            drawHud(memoryDC_);
 
             if (fps_) displayFps(memoryDC_);
 
@@ -557,6 +626,7 @@ void Engine::castRays() // ray casting algorithm
     double yTexSrc, xTexSrc, texSrc;
     double vDistance, hDistance, distance;
     double fishbowl;
+    double intensity;
     bool up, left;
     size_t mapY, mapX;
     int hTex, vTex, tex;
@@ -617,6 +687,7 @@ void Engine::castRays() // ray casting algorithm
                         // backtrack
                         y -= up ? -0.5 : 0.5;
                         x -= dX / 2;
+                        hDistance = INFINITE;
                     }
                     else
                     {
@@ -677,6 +748,7 @@ void Engine::castRays() // ray casting algorithm
                         // backtrack
                         x -= left ? -0.5 : 0.5;
                         y -= dY / 2;
+                        vDistance = INFINITE;
                     }
                     else
                     {
@@ -707,18 +779,21 @@ void Engine::castRays() // ray casting algorithm
             distance = hDistance;
             tex = hTex;
             texSrc = xTexSrc;
-            offset = 0;
         }
         else
         {
             distance = vDistance;
             tex = vTex;
             texSrc = yTexSrc;
-            offset = 1;
         }
-        distance = sqrt(distance) * fishbowl;
+        distance = sqrt(distance);
 
-        projCols_[i] = ProjInfo{i, distance, texSrc, tex, offset, 0};
+        // lighting
+        intensity = 1.0 / distance * 32;
+        offset = 20 - intensity;
+        if (offset < 0) offset = 0;
+
+        projCols_[i] = ProjInfo{i, distance, fishbowl, texSrc, tex, 0, offset, 0};
     }
 }
 
@@ -732,33 +807,58 @@ void Engine::drawScene(HDC hdc)
     for_each(enemies_.cbegin(), enemies_.cend(),
         [this, &graphics](const Enemy& enemy)
         {
-            unsigned int col = -1u;
             double angle = atan2(enemy.y - player_.y, enemy.x - player_.x);
+            double rot = player_.rot;
 
-            double rot = player_.rot - fov / 2;
-            for (auto i = 0u; i < projPlaneWidth; ++i)
-            {
-                if (rot >= angle)
-                {
-                    col = i;
-                    break;
-                }
+            if (angle < 0.0)
+                angle = angle + rot360;
 
-                rot = rot + angleIncrement_;
-            }
-            if (col == -1u)
+            if (rot < 0.0)
+                rot = rot + rot360;
+
+            int col = (angle - (player_.rot - fov / 2)) / angleIncrement_;
+            if (col < 0 || col >= projPlaneWidth)
                 return;
 
             double distance = pow(enemy.x - player_.x, 2) + pow(enemy.y - player_.y, 2);
-            distance = sqrt(distance) * cos(player_.rot - angle);
+            distance = sqrt(distance);
 
-            if (distance < 0.5)
+            if (distance < 1.0)
                 return;
 
             double xOffset = fmod((enemy.rot - angle) + PI, rot360);
             xOffset = fmod(xOffset / rot45 + 0.5, 8);
 
-            auto&& info = ProjInfo{col, distance, 0.0, 0, (int) xOffset, enemy.offset};
+            auto&& info = ProjInfo{col, distance, cos(player_.rot - angle), 0.0, 0, 0, (int) xOffset, enemy.offset};
+            graphics.push_back(std::move(info));
+        });
+
+    for_each(lives_.cbegin(), lives_.cend(),
+        [this, &graphics](const Life& life)
+        {
+            if (!(life.visible))
+                return;
+
+            double angle = atan2(life.y - player_.y, life.x - player_.x);
+            double rot = player_.rot;
+
+            if (angle < 0.0)
+                angle = angle + rot360;
+
+            if (rot < 0.0)
+                rot = rot + rot360;
+
+            int col = (angle - (rot - fov / 2)) / angleIncrement_;
+            if (col < 0 || col >= projPlaneWidth)
+                return;
+
+            double distance = pow(life.x - player_.x, 2) + pow(life.y - player_.y, 2);
+            distance = sqrt(distance);
+
+            if (distance < 1.5)
+                return;
+
+            auto&& info = ProjInfo{col, distance, cos(player_.rot - angle), 0.0, 0, 1, 0, 0};
             graphics.push_back(std::move(info));
         });
 
@@ -774,11 +874,11 @@ void Engine::drawScene(HDC hdc)
     double projDistance, top;
     for (const auto& info : graphics)
     {
-        projDistance = viewDistance_ / info.distance;
+        projDistance = viewDistance_ / (info.distance * info.fishbowl);
         top = (projPlaneHeight - projDistance) / 2.0;
 
         // draw black if wall is too far away
-        if (info.distance > 17.0)
+        if (info.distance > 16.0)
         {
             if (info.tex)
             {
@@ -797,14 +897,40 @@ void Engine::drawScene(HDC hdc)
         else // sprite
         {
             StretchBlt(hdc, info.col - projDistance / 2, top, projDistance, projDistance,
-                       spriteMasks_[0], info.xOffset * texSize, info.yOffset * texSize,
+                       spriteMasks_[info.sprite], info.xOffset * texSize, info.yOffset * texSize,
                        texSize, texSize, SRCAND);
 
             StretchBlt(hdc, info.col - projDistance / 2, top, projDistance, projDistance,
-                       sprites_[0], info.xOffset * texSize, info.yOffset * texSize,
+                       sprites_[info.sprite], info.xOffset * texSize, info.yOffset * texSize,
                        texSize, texSize, SRCPAINT);
 
         }
+    }
+}
+
+void Engine::drawHud(HDC hdc)
+{
+    string text;
+
+    // level number
+    text = string("LEVEL ") + to_string(level_.number);
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, RGB(255, 255, 255));
+    TextOut(hdc, cRect_.right - 80, cRect_.bottom - 35, text.c_str(), text.length());
+
+    // stamina bar
+    SelectObject(hdc, greenBrush_);
+    Rectangle(hdc, 20, cRect_.bottom - 40, 20 + (player_.stamina * 2), cRect_.bottom - 20);
+
+    // lives
+    for (auto i = 1u; i <= player_.lives; ++i)
+    {
+        BitBlt(hdc, i * 25, cRect_.bottom - 65, 16, 16,
+                   spriteMasks_[2], 0, 0, SRCAND);
+
+        BitBlt(hdc, i * 25, cRect_.bottom - 65, 16, 16,
+                   spriteMasks_[2], 0, 0, SRCAND);
+
     }
 }
 
@@ -852,7 +978,7 @@ void Engine::displayFps(HDC hdc)
 
     }
 
-    TextOut(hdc, cRect_.right - 100, 20, fps.c_str(), 10);
+    TextOut(hdc, cRect_.right - 95, 20, fps.c_str(), 10);
 
     counter = (counter + 1) % 20;
 }

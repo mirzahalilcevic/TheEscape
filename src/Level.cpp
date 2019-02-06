@@ -32,6 +32,15 @@ void Level::load(size_t n)
             enemies_[i].rot = enemies_[i].startRot;
         }
 
+        // load lives
+
+        size_t lifeNum;
+        levelFile >> lifeNum;
+
+        lives_.resize(lifeNum);
+        for (auto i = 0u; i < lifeNum; ++i)
+            levelFile >> lives_[i].x >> lives_[i].y;
+
         // load width and height of map
         levelFile >> width >> height;
 
