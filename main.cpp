@@ -5,7 +5,7 @@
 #endif
 
 #define WINDOW_WIDTH  1024
-#define WINDOW_HEIGHT 576
+#define WINDOW_HEIGHT  576
 
 #include <tchar.h>
 #include <windows.h>
@@ -35,7 +35,16 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     wincl.style = CS_DBLCLKS;
     wincl.cbSize = sizeof (WNDCLASSEX);
     wincl.hIcon = LoadIcon (NULL, IDI_APPLICATION);
-    wincl.hIconSm = LoadIcon (NULL, IDI_APPLICATION);
+    wincl.hIconSm = (HICON) LoadImage(
+        NULL,
+        "escape.ico",
+        IMAGE_ICON,
+        0,
+        0,
+        LR_LOADFROMFILE
+        | LR_DEFAULTSIZE
+        | LR_SHARED
+    );
     wincl.hCursor = LoadCursor (NULL, IDC_ARROW);
     wincl.lpszMenuName = NULL;
     wincl.cbClsExtra = 0;
@@ -77,8 +86,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         case WM_MOUSEMOVE:
             ::engine->handleMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
-        case WM_LBUTTONDOWN:
-            ::engine->handleLButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        case WM_LBUTTONUP:
+            ::engine->handleLButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
         case WM_KEYDOWN:
             ::engine->handleKeyDown(wParam);

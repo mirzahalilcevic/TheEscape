@@ -40,6 +40,8 @@
 			<Add library="user32" />
 			<Add library="kernel32" />
 			<Add library="comctl32" />
+			<Add library="winmm" />
+			<Add library="comdlg32" />
 		</Linker>
 		<Unit filename="include/Engine.hpp" />
 		<Unit filename="include/Level.hpp" />

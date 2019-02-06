@@ -15,6 +15,7 @@
 
 #include <windows.h>
 #include <cmath>
+#include <ctime>
 #include <array>
 
 #include "Level.hpp"
@@ -58,8 +59,10 @@ struct ProjInfo
 {
     unsigned int col;
     double distance;
+    double fishbowl;
     double texSrc;
     int tex;
+    int sprite;
     int xOffset, yOffset;
 };
 
@@ -78,7 +81,7 @@ class Engine
 
         // number of resources
         static constexpr size_t texNum = 9;
-        static constexpr size_t spriteNum = 1;
+        static constexpr size_t spriteNum = 3;
         static constexpr size_t levelNum = 2;
 
         // IDs
@@ -114,7 +117,7 @@ class Engine
 
         // input handlers
         void handleMouseMove(int, int);
-        void handleLButtonDown(int, int);
+        void handleLButtonUp(int, int);
         void handleKeyDown(int);
 
         // timer handler
@@ -152,15 +155,16 @@ class Engine
         // gameplay related
 
         std::vector<Enemy> enemies_;
+        std::vector<Life> lives_;
         std::vector<Door> doors_;
 
         Player player_;
-        Level level_{player_, enemies_};
+        Level level_{player_, enemies_, lives_};
 
         // flags
-        bool fps_ = false;
+        bool fps_ = true;
         bool miniMap_ = false;
-        GameState gameState_ = GameState::RUNNING;
+        GameState gameState_ = GameState::MAIN_MENU;
 
         // graphics
 
@@ -169,10 +173,11 @@ class Engine
 
         std::vector<ProjInfo> projCols_;
 
-        std::array<HBITMAP, texNum + spriteNum * 2> bitmaps_;
+        std::array<HBITMAP, texNum + spriteNum * 2 + 1> bitmaps_;
         std::array<HDC, texNum> textures_;
         std::array<HDC, spriteNum> sprites_;
         std::array<HDC, spriteNum> spriteMasks_;
+        HDC background_;
 
         // menus
 
@@ -195,7 +200,12 @@ class Engine
         void render();
         void castRays();
         void drawScene(HDC);
+        void drawHud(HDC);
         void drawMiniMap(HDC);
+
+        // saves
+        void saveGame();
+        void loadGame();
 
         // misc
         void displayFps(HDC);

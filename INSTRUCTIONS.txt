@@ -1,0 +1,16 @@
+UP ARROW   | W - move forward
+DOWN ARROW | S - move backwards
+
+LEFT ARROW  - turn left
+RIGHT ARROW - turn right
+
+A - strafe left
+D - strafe right
+
+SHIFT - run
+
+SPACE - open/close door
+
+ESC - pause
+
+F - toggle fps indicator
