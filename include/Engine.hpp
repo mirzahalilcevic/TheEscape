@@ -117,7 +117,7 @@ class Engine
 
         // input handlers
         void handleMouseMove(int, int);
-        void handleLButtonDown(int, int);
+        void handleLButtonUp(int, int);
         void handleKeyDown(int);
 
         // timer handler

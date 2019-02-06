@@ -86,8 +86,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         case WM_MOUSEMOVE:
             ::engine->handleMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
-        case WM_LBUTTONDOWN:
-            ::engine->handleLButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        case WM_LBUTTONUP:
+            ::engine->handleLButtonUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
         case WM_KEYDOWN:
             ::engine->handleKeyDown(wParam);

@@ -218,7 +218,6 @@ void Engine::start()
         }
 
         checkInput();
-
         while (lag >= MS_PER_UPDATE)
         {
             update();
@@ -277,7 +276,7 @@ void Engine::handleMouseMove(int x, int y)
     }
 }
 
-void Engine::handleLButtonDown(int x, int y)
+void Engine::handleLButtonUp(int x, int y)
 {
     switch (gameState_)
     {
@@ -285,14 +284,15 @@ void Engine::handleLButtonDown(int x, int y)
             break;
 
         case GameState::MAIN_MENU:
-            PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
             switch(findMenuItem(x, y, GameState::MAIN_MENU))
             {
                 case Menu::NEW_GAME:
+                    PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                     loadLevel(1);
                     gameState_ = GameState::RUNNING;
                     break;
                 case Menu::LOAD_GAME:
+                    PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                     loadGame();
                     break;
                 case Menu::QUIT:
@@ -304,13 +304,14 @@ void Engine::handleLButtonDown(int x, int y)
             break;
 
         case GameState::PAUSE_MENU:
-            PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
             switch(findMenuItem(x, y, GameState::PAUSE_MENU))
             {
                 case Menu::RESUME:
+                    PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                     gameState_ = GameState::RUNNING;
                     break;
                 case Menu::SAVE_GAME:
+                    PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                     saveGame();
                     gameState_ = GameState::RUNNING;
                     break;
@@ -325,6 +326,7 @@ void Engine::handleLButtonDown(int x, int y)
 
                     if (choice == IDYES)
                     {
+                        PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                         menu_ = menus_[4];
                         gameState_ = GameState::MAIN_MENU;
                     }
@@ -400,8 +402,10 @@ void Engine::handleKeyDown(int key)
                             if (level_.number != levelNum)
                                 loadLevel(level_.number + 1);
                             else
-                                // game finished
-
+                            {
+                                gameState_ = GameState::MAIN_MENU;
+                                menu_ = menus_[4];
+                            }
                             break;
 
                     }
@@ -416,7 +420,6 @@ void Engine::handleKeyDown(int key)
                 PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                 gameState_ = GameState::RUNNING;
             }
-
             break;
 
         default:
@@ -651,7 +654,9 @@ void Engine::update()
 
                 if (--player_.lives == 0)
                 {
-                    /// TODO: game over
+                    gameState_ = GameState::MAIN_MENU;
+                    menu_ = menus_[4];
+                    return;
                 }
 
                 level_.load(level_.number);
@@ -1012,14 +1017,15 @@ void Engine::drawScene(HDC hdc)
         {
             double angle = atan2(enemy.y - player_.y, enemy.x - player_.x);
             double rot = player_.rot;
+            double ang = angle;
 
-            if (angle < 0.0)
-                angle = angle + rot360;
+            if (ang < 0.0)
+                ang = ang + rot360;
 
             if (rot < 0.0)
                 rot = rot + rot360;
 
-            int col = (angle - (player_.rot - fov / 2)) / angleIncrement_;
+            int col = (ang - (player_.rot - fov / 2)) / angleIncrement_;
             if (col < 0 || col >= projPlaneWidth)
                 return;
 
@@ -1222,7 +1228,6 @@ void Engine::loadGame()
 
             gameState_ = GameState::RUNNING;
         }
-
         saveFile.close();
     }
 }
