@@ -542,8 +542,41 @@ void Engine::update()
 
     // collision detection
 
-    constexpr double collisionRadius = 0.2;
+    constexpr double collisionRadius = 0.05;
 
+    auto block = level_.height * (int) player_.y + (int) player_.x;
+
+    auto C  = level_.levelMap[block]                    <= 0; // current block - free space
+    auto L  = level_.levelMap[block - 1]                 > 0; // left block - wall
+    auto R  = level_.levelMap[block + 1]                 > 0; // right block - wall
+    auto T  = level_.levelMap[block - level_.height]     > 0; // ...
+    auto D  = level_.levelMap[block + level_.height]     > 0;
+    auto LT = level_.levelMap[block - level_.height - 1] > 0;
+    auto RT = level_.levelMap[block - level_.height + 1] > 0;
+    auto LD = level_.levelMap[block + level_.height - 1] > 0;
+    auto RD = level_.levelMap[block + level_.height + 1] > 0;
+    auto blockNumberH = block%level_.height;
+    auto blockNumberV = block/level_.height;
+    auto newXRight = newX + collisionRadius;
+    auto newXLeft = newX - collisionRadius;
+    auto newYTop = newY - collisionRadius;
+    auto newYDown = newY + collisionRadius;
+    auto RCol = newXRight >= (blockNumberH + 1);
+    auto LCol = newXLeft <= blockNumberH;
+    auto TCol = newYTop <= blockNumberV;
+    auto DCol = newYDown >= (blockNumberV + 1);
+
+    if ((LT && LCol && TCol && !L && !T) || (RT && RCol && TCol && !R && !T)
+        || (LD && LCol && DCol && !L && !D) || (RD && RCol && DCol && !R && !D)) {}
+    else
+    {
+        if ((R && RCol) || (L && LCol)) {}
+        else player_.x = newX;
+        if ((T && TCol) || (D && DCol)) {}
+        else player_.y = newY;
+    }
+
+    /*
     double colRad = player_.moveSpeed < 0.0 ? -collisionRadius : collisionRadius;
 
     bool up = (angle < 0.0 && angle > -PI) || (angle > PI && angle < rot360);
@@ -560,6 +593,7 @@ void Engine::update()
 
     if (level_.levelMap[level_.height * collisionY + collisionX] <= 0)
         player_.y = newY;
+    */
 
     // door animation fsm
     for (auto& dr : doors_)
