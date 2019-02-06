@@ -15,6 +15,7 @@
 
 #include <windows.h>
 #include <cmath>
+#include <ctime>
 #include <array>
 
 #include "Level.hpp"
@@ -198,6 +199,10 @@ class Engine
         void drawScene(HDC);
         void drawHud(HDC);
         void drawMiniMap(HDC);
+
+        // saves
+        void saveGame();
+        void loadGame();
 
         // misc
         void displayFps(HDC);

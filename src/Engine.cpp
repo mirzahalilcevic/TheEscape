@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 
 #include "Engine.hpp"
 
@@ -284,6 +285,7 @@ void Engine::handleLButtonDown(int x, int y)
             break;
 
         case GameState::MAIN_MENU:
+            PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
             switch(findMenuItem(x, y, GameState::MAIN_MENU))
             {
                 case Menu::NEW_GAME:
@@ -291,7 +293,7 @@ void Engine::handleLButtonDown(int x, int y)
                     gameState_ = GameState::RUNNING;
                     break;
                 case Menu::LOAD_GAME:
-                    /// TODO
+                    loadGame();
                     break;
                 case Menu::QUIT:
                     PostQuitMessage(0);
@@ -302,13 +304,15 @@ void Engine::handleLButtonDown(int x, int y)
             break;
 
         case GameState::PAUSE_MENU:
+            PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
             switch(findMenuItem(x, y, GameState::PAUSE_MENU))
             {
                 case Menu::RESUME:
                     gameState_ = GameState::RUNNING;
                     break;
                 case Menu::SAVE_GAME:
-                    /// TODO
+                    saveGame();
+                    gameState_ = GameState::RUNNING;
                     break;
                 case Menu::MAIN_MENU:
                 {
@@ -354,6 +358,7 @@ void Engine::handleKeyDown(int key)
                     break;
 
                 case VK_ESCAPE: // pause the game
+                    PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                     gameState_ = GameState::PAUSE_MENU;
                     menu_ = menus_[0];
                     break;
@@ -406,9 +411,11 @@ void Engine::handleKeyDown(int key)
             break;
 
         case GameState::PAUSE_MENU:
-
             if (key == VK_ESCAPE)
+            {
+                PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                 gameState_ = GameState::RUNNING;
+            }
 
             break;
 
@@ -1127,6 +1134,96 @@ void Engine::drawHud(HDC hdc)
         BitBlt(hdc, i * 25, cRect_.bottom - 65, 16, 16,
                    spriteMasks_[2], 0, 0, SRCAND);
 
+    }
+}
+
+void Engine::saveGame()
+{
+    CreateDirectory("Saves", NULL);
+
+    time_t now = time(0);
+    tm *ltm = localtime(&now);
+
+    string name = to_string(1900 + ltm->tm_year) + "-"
+        + to_string(1 + ltm->tm_mon) + "-"
+        + to_string(ltm->tm_mday) + "_"
+        + to_string(ltm->tm_hour)
+        + to_string(ltm->tm_min)
+        + to_string(ltm->tm_sec)
+        + ".save";
+
+    ofstream saveFile("Saves/" + name);
+
+    saveFile << level_.number << " ";
+
+    // player
+    saveFile << player_.lives << " ";
+    saveFile << player_.stamina << " ";
+    saveFile << player_.x << " ";
+    saveFile << player_.y << " ";
+    saveFile << player_.rot << " ";
+
+    // enemies
+    for (const auto& enemy : enemies_)
+    {
+        saveFile << enemy.x << " ";
+        saveFile << enemy.y << " ";
+        saveFile << enemy.rot << " ";
+    }
+
+    // lives
+    for (const auto& life : lives_)
+        saveFile << life.visible << " ";
+
+    saveFile.close();
+}
+
+void Engine::loadGame()
+{
+    char fileName[255] = "\0";
+    char filter[] = "Save files (*.save)\0*.save\0\0";
+
+    OPENFILENAME ofn;
+    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+    ofn.lStructSize = sizeof(OPENFILENAME);
+    ofn.lpstrFile = fileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrFilter = filter;
+    ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+
+    bool isOpen = GetOpenFileName(&ofn);
+    if (isOpen)
+    {
+        ifstream saveFile{string(fileName)};
+        if (saveFile.is_open())
+        {
+            int levelNum;
+            saveFile >> levelNum;
+            loadLevel(levelNum);
+
+            // player
+            saveFile >> player_.lives;
+            saveFile >> player_.stamina;
+            saveFile >> player_.x;
+            saveFile >> player_.y;
+            saveFile >> player_.rot;
+
+            // enemies
+            for (auto& enemy : enemies_)
+            {
+                saveFile >> enemy.x;
+                saveFile >> enemy.y;
+                saveFile >> enemy.rot;
+            }
+
+            // lives
+            for (auto& life : lives_)
+                saveFile >> life.visible;
+
+            gameState_ = GameState::RUNNING;
+        }
+
+        saveFile.close();
     }
 }
 
