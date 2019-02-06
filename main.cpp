@@ -9,6 +9,7 @@
 
 #include <tchar.h>
 #include <windows.h>
+#include <windowsx.h>
 
 #include "Engine.hpp"
 Engine * engine = nullptr;
@@ -74,10 +75,10 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
     switch (message)
     {
         case WM_MOUSEMOVE:
-            ::engine->handleMouseMove(LOWORD(lParam), HIWORD(lParam));
+            ::engine->handleMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
         case WM_LBUTTONDOWN:
-            ::engine->handleLButtonDown(LOWORD(lParam), HIWORD(lParam));
+            ::engine->handleLButtonDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             break;
         case WM_KEYDOWN:
             ::engine->handleKeyDown(wParam);

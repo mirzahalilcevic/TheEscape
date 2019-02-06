@@ -23,8 +23,27 @@
 enum class GameState
 {
     RUNNING,
-    MAINMENU,
-    LEVELEND
+    MAIN_MENU,
+    PAUSE_MENU
+};
+
+enum class Menu
+{
+    NEW_GAME,
+    LOAD_GAME,
+    QUIT,
+    RESUME,
+    SAVE_GAME,
+    MAIN_MENU,
+    NONE
+};
+
+enum class MainMenu
+{
+    NEW_GAME,
+    LOAD_GAME,
+    QUIT,
+    NONE
 };
 
 struct Door
@@ -155,6 +174,14 @@ class Engine
         std::array<HDC, spriteNum> sprites_;
         std::array<HDC, spriteNum> spriteMasks_;
 
+        // menus
+
+        std::array<RECT, 3> mainMenuItems_;
+        std::array<RECT, 3> pauseMenuItems_;
+        std::array<HBITMAP, 8> menuBitmaps_;
+        std::array<HDC, 8> menus_;
+        HDC menu_;
+
         /// methods
 
         // updating
@@ -171,5 +198,5 @@ class Engine
         void displayFps(HDC);
         void loadLevel(size_t);
         Door& getDoor(size_t, size_t);
-
+        Menu findMenuItem(int, int, GameState);
 };

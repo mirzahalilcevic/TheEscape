@@ -6,6 +6,7 @@
 #define PRESSED(key) GetAsyncKeyState(key) & 0x8000
 
 #define TEXTURE(n)    ("Textures/Texture" + std::to_string(n) + ".bmp").c_str()
+#define IMAGE(n)      ("Images/Image" + std::to_string(n) + ".bmp").c_str()
 #define SPRITE(n)     ("Sprites/Sprite" + std::to_string(n) + ".bmp").c_str()
 #define SPRITEMASK(n) ("Sprites/Sprite" + std::to_string(n) + "Mask.bmp").c_str()
 
@@ -99,6 +100,41 @@ void Engine::init(HWND hwnd)
     // projection columns
     projCols_.resize(projPlaneWidth);
 
+    //items of menus
+
+    int x1 = 4 * 72;
+    int y1 = 276 / 2;
+    RECT item;
+    item.left = x1;
+    item.right = x1 + 6 * 72;
+    pauseMenuItems_[0] = item;
+    for(auto i = 0; i < 3; i++)
+    {
+        item.top = y1 + i * 100;
+        item.bottom = y1 + (i + 1) * 100;
+        pauseMenuItems_[i] = item;
+    }
+    int x2 = 0;
+    int y2 = 380;
+    item.left = x2;
+    item.right = x2 + 4 * 72;
+    for(auto i = 0; i < 3; i++)
+    {
+        item.top = y2 + i * 50;
+        item.bottom = y2 + (i + 1) * 50;
+        mainMenuItems_[i] = item;
+    }
+
+    for(auto i = 0; i < 8; i++)
+    {
+        auto bitmap = (HBITMAP) LoadImage(NULL, IMAGE(i+1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        menuBitmaps_[i] = bitmap;
+
+        auto hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        menus_[i] = hdc;
+    }
+
     // load textures
     for (auto i = 0u; i < texNum; ++i)
     {
@@ -128,8 +164,10 @@ void Engine::init(HWND hwnd)
         spriteMasks_[i] = hdc;
     }
 
+
     // load first level
-    loadLevel(1);
+   // loadLevel(1);
+    gameState_ = GameState::MAIN_MENU;
 }
 
 void Engine::start()
@@ -171,11 +209,88 @@ void Engine::start()
 
 void Engine::handleMouseMove(int x, int y)
 {
+    switch (gameState_)
+    {
+        case GameState::RUNNING:
+            break;
+        case GameState::MAIN_MENU:
+            switch(findMenuItem(x, y, GameState::MAIN_MENU))
+            {
+                case Menu::NEW_GAME:
+                    menu_ = menus_[5];
+                    break;
+                case Menu::LOAD_GAME:
+                    menu_ = menus_[6];
+                    break;
+                case Menu::QUIT:
+                    menu_ = menus_[7];
+                    break;
+                case Menu::NONE:
+                    menu_ = menus_[4];
+                    break;
+            }
+            break;
+        case GameState::PAUSE_MENU:
+            switch(findMenuItem(x, y, GameState::PAUSE_MENU))
+            {
+                case Menu::RESUME:
+                    menu_ = menus_[1];
+                    break;
+                case Menu::SAVE_GAME:
+                    menu_ = menus_[2];
+                    break;
+                case Menu::MAIN_MENU:
+                    menu_ = menus_[3];
+                    break;
+                default:
+                    menu_ = menus_[0];
+                    break;
+            }
+            break;
+    }
     /// TODO: handle mouse move
 }
 void Engine::handleLButtonDown(int x, int y)
 {
+    Menu menu;
     /// TODO: handle left click
+    switch (gameState_)
+    {
+        case GameState::RUNNING:
+            break;
+        case GameState::MAIN_MENU:
+            menu = findMenuItem(x, y, GameState::MAIN_MENU);
+            switch(menu)
+            {
+                case Menu::NEW_GAME:
+                    loadLevel(1);
+                    gameState_ = GameState::RUNNING;
+                    break;
+                case Menu::LOAD_GAME:
+
+                    break;
+                case Menu::QUIT:
+                    PostQuitMessage(0);
+                    break;
+            }
+            break;
+        case GameState::PAUSE_MENU:
+            menu = findMenuItem(x, y, GameState::PAUSE_MENU);
+            switch(menu)
+            {
+                case Menu::RESUME:
+                    gameState_ = GameState::RUNNING;
+                    break;
+                case Menu::SAVE_GAME:
+
+                    break;
+                case Menu::MAIN_MENU:
+                    menu_ = menus_[4];
+                    gameState_ = GameState::MAIN_MENU;
+                    break;
+            }
+            break;
+    }
 }
 
 void Engine::handleKeyDown(int key)
@@ -191,8 +306,9 @@ void Engine::handleKeyDown(int key)
             break;
 
         case VK_ESCAPE: // pause the game
-            gameState_ = (gameState_ == GameState::MAINMENU) ? GameState::RUNNING
-                                                             : GameState::MAINMENU;
+
+            gameState_ = (gameState_ == GameState::PAUSE_MENU) ? GameState::RUNNING
+                                                                : GameState::PAUSE_MENU, menu_ = menus_[0];
             break;
 
         case VK_SPACE: // action key
@@ -486,12 +602,14 @@ void Engine::render()
 
             break;
 
-        case GameState::MAINMENU:
+        case GameState::MAIN_MENU:
             /// TODO: main menu
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menu_, 0, 0, SRCCOPY);
             break;
 
-        case GameState::LEVELEND:
+        case GameState::PAUSE_MENU:
             /// TODO: pause screen
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menu_, 0, 0, SRCCOPY);
             break;
 
     }
@@ -855,4 +973,34 @@ void Engine::displayFps(HDC hdc)
     TextOut(hdc, cRect_.right - 100, 20, fps.c_str(), 10);
 
     counter = (counter + 1) % 20;
+}
+
+Menu Engine::findMenuItem(int x, int y, GameState state)
+{
+    switch(state)
+    {
+        case GameState::MAIN_MENU:
+            if((x >= mainMenuItems_[0].left) && (x <= mainMenuItems_[0].right) && (y >= mainMenuItems_[0].top) && (y <= mainMenuItems_[0].bottom ))
+                return Menu::NEW_GAME;
+            else if((x >= mainMenuItems_[1].left && x <= mainMenuItems_[1].right && y >= mainMenuItems_[1].top && y <= mainMenuItems_[1].bottom ))
+                return Menu::LOAD_GAME;
+            else if((x >= mainMenuItems_[2].left && x <= mainMenuItems_[2].right && y >= mainMenuItems_[2].top && y <= mainMenuItems_[2].bottom ))
+                return Menu::QUIT;
+            else
+                return Menu::NONE;
+
+            break;
+        case GameState::PAUSE_MENU:
+            if((x >= pauseMenuItems_[0].left && x <= pauseMenuItems_[0].right && y >= pauseMenuItems_[0].top && y <= pauseMenuItems_[0].bottom ))
+                return Menu::RESUME;
+            else if((x >= pauseMenuItems_[1].left && x <= pauseMenuItems_[1].right && y >= pauseMenuItems_[1].top && y <= pauseMenuItems_[1].bottom ))
+                return Menu::SAVE_GAME;
+            else if((x >= pauseMenuItems_[2].left && x <= pauseMenuItems_[2].right && y >= pauseMenuItems_[2].top && y <= pauseMenuItems_[2].bottom ))
+                return Menu::MAIN_MENU;
+            else
+                return Menu::NONE;
+            break;
+        default:
+            return Menu::NONE;
+    }
 }
