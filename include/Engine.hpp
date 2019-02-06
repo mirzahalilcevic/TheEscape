@@ -179,8 +179,11 @@ class Engine
         std::array<RECT, 3> mainMenuItems_;
         std::array<RECT, 3> pauseMenuItems_;
         std::array<HBITMAP, 8> menuBitmaps_;
+        std::array<HBITMAP, 4> menuBitmapsMasks_;
         std::array<HDC, 8> menus_;
-        HDC menu_;
+        std::array<HDC, 4> menusMasks_;
+
+        HDC menu_, menuMask_;
 
         /// methods
 

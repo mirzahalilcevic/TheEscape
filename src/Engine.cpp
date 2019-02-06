@@ -7,6 +7,7 @@
 
 #define TEXTURE(n)    ("Textures/Texture" + std::to_string(n) + ".bmp").c_str()
 #define IMAGE(n)      ("Images/Image" + std::to_string(n) + ".bmp").c_str()
+#define IMAGEMASK(n)  ("Images/imageMask" + std::to_string(n) + ".bmp").c_str()
 #define SPRITE(n)     ("Sprites/Sprite" + std::to_string(n) + ".bmp").c_str()
 #define SPRITEMASK(n) ("Sprites/Sprite" + std::to_string(n) + "Mask.bmp").c_str()
 
@@ -134,6 +135,15 @@ void Engine::init(HWND hwnd)
         SelectObject(hdc, bitmap);
         menus_[i] = hdc;
     }
+    for(auto i = 0; i < 4; i++)
+    {
+        auto bitmap = (HBITMAP) LoadImage(NULL, IMAGEMASK(i+1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        menuBitmapsMasks_[i] = bitmap;
+
+        auto hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        menusMasks_[i] = hdc;
+    }
 
     // load textures
     for (auto i = 0u; i < texNum; ++i)
@@ -235,15 +245,19 @@ void Engine::handleMouseMove(int x, int y)
             {
                 case Menu::RESUME:
                     menu_ = menus_[1];
+                    menuMask_ = menusMasks_[1];
                     break;
                 case Menu::SAVE_GAME:
                     menu_ = menus_[2];
+                    menuMask_ = menusMasks_[2];
                     break;
                 case Menu::MAIN_MENU:
                     menu_ = menus_[3];
+                    menuMask_ = menusMasks_[3];
                     break;
                 default:
                     menu_ = menus_[0];
+                    menuMask_ = menusMasks_[0];
                     break;
             }
             break;
@@ -308,7 +322,7 @@ void Engine::handleKeyDown(int key)
         case VK_ESCAPE: // pause the game
 
             gameState_ = (gameState_ == GameState::PAUSE_MENU) ? GameState::RUNNING
-                                                                : GameState::PAUSE_MENU, menu_ = menus_[0];
+                                                                : GameState::PAUSE_MENU, menu_ = menus_[0], menuMask_ = menusMasks_[0];
             break;
 
         case VK_SPACE: // action key
@@ -440,7 +454,7 @@ void Engine::update()
 
     // collision detection
 
-    constexpr double collisionRadius = 0.2;
+    constexpr double collisionRadius = 0.05;
 
     /// TODO: keep distance from wall
 
@@ -465,8 +479,18 @@ void Engine::update()
     auto LCol = newXLeft <= blockNumberH;
     auto TCol = newYTop <= blockNumberV;
     auto DCol = newYDown >= (blockNumberV + 1);
-
+   /*
+    auto LTBlock = level_.height * (int) (newY - collisionRadius) + (int) (newX - collisionRadius);
+    auto RTBlock = level_.height * (int) (newY - collisionRadius) + (int) (newX + collisionRadius);
+    auto LBBlock = level_.height * (int) (newY + collisionRadius) + (int) (newX - collisionRadius);
+    auto RBBlock = level_.height * (int) (newY + collisionRadius) + (int) (newX + collisionRadius);
+    auto LTW = level_.levelMap[LTBlock] > 0;
+    auto RTW = level_.levelMap[RTBlock] > 0;
+    auto LBW = level_.levelMap[LBBlock] > 0;
+    auto RBW = level_.levelMap[RBBlock] > 0;
+    */
     if ((LT && LCol && TCol && !L && !T) || (RT && RCol && TCol && !R && !T) || (LD && LCol && DCol && !L && !D) || (RD && RCol && DCol && !R && !D)) {}
+   // if(LTW || RTW || LBW || RBW) {}
     else
     {
         if ((R && RCol) || (L && LCol)) {}
@@ -609,7 +633,9 @@ void Engine::render()
 
         case GameState::PAUSE_MENU:
             /// TODO: pause screen
-            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menu_, 0, 0, SRCCOPY);
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menu_, 0, 0, SRCPAINT);
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menuMask_, 0, 0, SRCAND);
+
             break;
 
     }
