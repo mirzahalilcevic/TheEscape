@@ -239,6 +239,7 @@ void Engine::init(HWND hwnd)
 
     gameState_ = GameState::MAIN_MENU;
     menu_ = menus_[4];
+    PlaySound("Sounds/menu.wav", NULL, SND_ASYNC | SND_LOOP | SND_FILENAME);
 }
 
 void Engine::start()
@@ -289,6 +290,7 @@ void Engine::handleMouseMove(int x, int y)
             {
                 case Menu::NEW_GAME:
                     menu_ = menus_[5];
+                    PlaySound(NULL, NULL, NULL);
                     break;
                 case Menu::LOAD_GAME:
                     menu_ = menus_[6];
@@ -318,6 +320,7 @@ void Engine::handleMouseMove(int x, int y)
                 case Menu::MAIN_MENU:
                     menu_ = menus_[3];
                     menuMask_ = menusMasks_[3];
+                    PlaySound("Sounds/menu.wav", NULL, SND_ASYNC | SND_LOOP | SND_FILENAME);
                     break;
                 default:
                     menu_ = menus_[0];
@@ -739,7 +742,7 @@ void Engine::update()
                 }
 
                 if (animationCounter % animationSpeed == 0)
-                    enemy.offset = enemy.offset % 4 + 1;
+                    enemy.offset = enemy.offset % 3 + 1;
 
                 enemy.rot = atan2(player_.y - enemy.y, player_.x - enemy.x);
                 newX = enemy.x + Enemy::moveSpeed * cos(enemy.rot);
@@ -752,7 +755,7 @@ void Engine::update()
                 if (distance > 0.01)
                 {
                     if (animationCounter % animationSpeed == 0)
-                        enemy.offset = enemy.offset % 4 + 1;
+                        enemy.offset = enemy.offset % 3 + 1;
 
                     // return to start position
                     enemy.rot = atan2(enemy.startY - enemy.y, enemy.startX - enemy.x);
@@ -843,8 +846,7 @@ void Engine::render()
 
         case GameState::GAME_OVER:
         case GameState::GAME_COMPLETE:
-            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, dialog_, 0, 0, SRCPAINT);
-            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, dialogMask_, 0, 0, SRCAND);
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, dialog_, 0, 0, SRCCOPY);
             break;
 
     }
