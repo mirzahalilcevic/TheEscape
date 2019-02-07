@@ -9,6 +9,8 @@
 #define TEXTURE(n)    ("Textures/Texture" + std::to_string(n) + ".bmp").c_str()
 #define IMAGE(n)      ("Images/Image" + std::to_string(n) + ".bmp").c_str()
 #define IMAGEMASK(n)  ("Images/imageMask" + std::to_string(n) + ".bmp").c_str()
+#define PICTURE(n)      ("Images/picture" + std::to_string(n) + ".bmp").c_str()
+#define PICTUREMASK(n)("Images/pictureMask" + std::to_string(n) + ".bmp").c_str()
 #define SPRITE(n)     ("Sprites/Sprite" + std::to_string(n) + ".bmp").c_str()
 #define SPRITEMASK(n) ("Sprites/Sprite" + std::to_string(n) + "Mask.bmp").c_str()
 
@@ -158,6 +160,23 @@ void Engine::init(HWND hwnd)
         mainMenuItems_[i] = item;
     }
 
+    for (auto i = 0; i < 2; i++)
+    {
+        auto bitmap = (HBITMAP) LoadImage(NULL, PICTURE(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        dialogBitmaps_[i] = bitmap;
+
+        auto hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        dialogs_[i] = hdc;
+
+        bitmap = (HBITMAP) LoadImage(NULL, PICTUREMASK(i + 1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+        dialogBitmaps_[i] = bitmap;
+
+        hdc = CreateCompatibleDC(screenDC);
+        SelectObject(hdc, bitmap);
+        dialogsMasks_[i] = hdc;
+
+    }
     for(auto i = 0; i < 8; i++)
     {
         auto bitmap = (HBITMAP) LoadImage(NULL, IMAGE(i+1), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);

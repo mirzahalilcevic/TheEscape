@@ -185,6 +185,7 @@ class Engine
         std::array<HBITMAP, 2> dialogBitmapsMasks_;
         std::array<HDC, 2> dialogs_;
         std::array<HDC, 2> dialogsMasks_;
+        HDC dialog_, dialogMask_;
 
         // menus
 
