@@ -179,13 +179,22 @@ class Engine
         std::array<HDC, spriteNum> spriteMasks_;
         HDC background_;
 
+        //  dialogs
+
+        std::array<HBITMAP, 2> dialogBitmaps_;
+        std::array<HBITMAP, 2> dialogBitmapsMasks_;
+        std::array<HDC, 2> dialogs_;
+        std::array<HDC, 2> dialogsMasks_;
+
         // menus
 
         std::array<RECT, 3> mainMenuItems_;
         std::array<RECT, 3> pauseMenuItems_;
         std::array<HBITMAP, 8> menuBitmaps_;
+        std::array<HBITMAP, 4> menuBitmapsMasks_;
         std::array<HDC, 8> menus_;
-        HDC menu_;
+        std::array<HDC, 4> menusMasks_;
+        HDC menu_, menuMask_;
 
         /// methods
 
