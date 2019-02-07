@@ -290,7 +290,6 @@ void Engine::handleMouseMove(int x, int y)
             {
                 case Menu::NEW_GAME:
                     menu_ = menus_[5];
-                    PlaySound(NULL, NULL, NULL);
                     break;
                 case Menu::LOAD_GAME:
                     menu_ = menus_[6];
@@ -320,7 +319,6 @@ void Engine::handleMouseMove(int x, int y)
                 case Menu::MAIN_MENU:
                     menu_ = menus_[3];
                     menuMask_ = menusMasks_[3];
-                    PlaySound("Sounds/menu.wav", NULL, SND_ASYNC | SND_LOOP | SND_FILENAME);
                     break;
                 default:
                     menu_ = menus_[0];
@@ -351,7 +349,6 @@ void Engine::handleLButtonUp(int x, int y)
                     gameState_ = GameState::RUNNING;
                     break;
                 case Menu::LOAD_GAME:
-                    PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                     loadGame();
                     break;
                 case Menu::QUIT:
@@ -385,7 +382,7 @@ void Engine::handleLButtonUp(int x, int y)
 
                     if (choice == IDYES)
                     {
-                        PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
+                        PlaySound("Sounds/menu.wav", NULL, SND_ASYNC | SND_LOOP | SND_FILENAME);
                         menu_ = menus_[4];
                         gameState_ = GameState::MAIN_MENU;
                     }
@@ -485,6 +482,7 @@ void Engine::handleKeyDown(int key)
 
         case GameState::GAME_OVER:
         case GameState::GAME_COMPLETE:
+            PlaySound("Sounds/menu.wav", NULL, SND_ASYNC | SND_LOOP | SND_FILENAME);
             gameState_ = GameState::MAIN_MENU;
             menu_ = menus_[4];
             break;
@@ -1104,6 +1102,7 @@ void Engine::drawScene(HDC hdc)
             if (rot < 0.0)
                 rot = rot + rot360;
 
+            // don't know why this works
             if (abs(ang - rot) > 5.23598775598)
             {
                 if (angle < 0.0)
@@ -1150,6 +1149,7 @@ void Engine::drawScene(HDC hdc)
             if (rot < 0.0)
                 rot = rot + rot360;
 
+            // don't know why this works
             if (abs(ang - rot) > 5.23598775598)
             {
                 if (angle < 0.0)
@@ -1309,6 +1309,8 @@ void Engine::loadGame()
         ifstream saveFile{string(fileName)};
         if (saveFile.is_open())
         {
+            PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
+
             int levelNum;
             saveFile >> levelNum;
             loadLevel(levelNum);
