@@ -997,7 +997,7 @@ void Engine::castRays() // ray casting algorithm
         distance = sqrt(distance);
 
         // lighting
-        intensity = 1.0 / distance * 32;
+        intensity = 1.0 / distance * 40;
         offset = 20 - intensity;
         if (offset < 0) offset = 0;
 
@@ -1016,6 +1016,7 @@ void Engine::drawScene(HDC hdc)
         [this, &graphics](const Enemy& enemy)
         {
             double angle = atan2(enemy.y - player_.y, enemy.x - player_.x);
+
             double rot = player_.rot;
             double ang = angle;
 
@@ -1025,7 +1026,19 @@ void Engine::drawScene(HDC hdc)
             if (rot < 0.0)
                 rot = rot + rot360;
 
-            int col = (ang - (player_.rot - fov / 2)) / angleIncrement_;
+            if (abs(ang - rot) > 5.23598775598)
+            {
+                if (angle < 0.0)
+                {
+                    ang = angle;
+                }
+                else
+                {
+                    rot = player_.rot;
+                }
+            }
+
+            int col = (ang - (rot - fov / 2)) / angleIncrement_;
             if (col < 0 || col >= projPlaneWidth)
                 return;
 
@@ -1049,15 +1062,29 @@ void Engine::drawScene(HDC hdc)
                 return;
 
             double angle = atan2(life.y - player_.y, life.x - player_.x);
-            double rot = player_.rot;
 
-            if (angle < 0.0)
-                angle = angle + rot360;
+            double rot = player_.rot;
+            double ang = angle;
+
+            if (ang < 0.0)
+                ang = ang + rot360;
 
             if (rot < 0.0)
                 rot = rot + rot360;
 
-            int col = (angle - (rot - fov / 2)) / angleIncrement_;
+            if (abs(ang - rot) > 5.23598775598)
+            {
+                if (angle < 0.0)
+                {
+                    ang = angle;
+                }
+                else
+                {
+                    rot = player_.rot;
+                }
+            }
+
+            int col = (ang - (rot - fov / 2)) / angleIncrement_;
             if (col < 0 || col >= projPlaneWidth)
                 return;
 
@@ -1087,7 +1114,7 @@ void Engine::drawScene(HDC hdc)
         top = (projPlaneHeight - projDistance) / 2.0;
 
         // draw black if wall is too far away
-        if (info.distance > 16.0)
+        if (info.distance > 15.0)
         {
             if (info.tex)
             {
@@ -1186,7 +1213,7 @@ void Engine::saveGame()
 
 void Engine::loadGame()
 {
-    char fileName[255] = "\0";
+    char fileName[MAX_PATH] = "\0";
     char filter[] = "Save files (*.save)\0*.save\0\0";
 
     OPENFILENAME ofn;
@@ -1195,6 +1222,7 @@ void Engine::loadGame()
     ofn.lpstrFile = fileName;
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrFilter = filter;
+    ofn.lpstrInitialDir = "Saves";
     ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
     bool isOpen = GetOpenFileName(&ofn);
@@ -1272,11 +1300,11 @@ void Engine::displayFps(HDC hdc)
     {
         string out = to_string(1000.0 / frameTime);
         if (out.find("inf") == string::npos)
-            fps = "FPS: " + out;
+            fps = out.substr(0, 5) + " FPS";
 
     }
 
-    TextOut(hdc, cRect_.right - 95, 20, fps.c_str(), 10);
+    TextOut(hdc, cRect_.right - 93, 20, fps.c_str(), 9);
 
     counter = (counter + 1) % 20;
 }
