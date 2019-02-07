@@ -25,7 +25,9 @@ enum class GameState
 {
     RUNNING,
     MAIN_MENU,
-    PAUSE_MENU
+    PAUSE_MENU,
+    GAME_OVER,
+    GAME_COMPLETE
 };
 
 enum class Menu
@@ -82,7 +84,7 @@ class Engine
         // number of resources
         static constexpr size_t texNum = 9;
         static constexpr size_t spriteNum = 3;
-        static constexpr size_t levelNum = 3;
+        static constexpr size_t levelNum = 1;
 
         // IDs
         static constexpr int door = 6;

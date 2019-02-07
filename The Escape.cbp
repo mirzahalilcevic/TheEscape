@@ -49,7 +49,6 @@
 		<Unit filename="main.cpp" />
 		<Unit filename="src/Engine.cpp" />
 		<Unit filename="src/Level.cpp" />
-		<Unit filename="src/Player.cpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />

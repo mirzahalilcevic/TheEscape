@@ -108,6 +108,8 @@ Engine::~Engine()
     for (auto hdc : dialogsMasks_)
         DeleteDC(hdc);
 
+    DeleteDC(dialog_);
+    DeleteDC(dialogMask_);
 }
 
 void Engine::init(HWND hwnd)
@@ -324,6 +326,9 @@ void Engine::handleMouseMove(int x, int y)
             }
             break;
 
+        default:
+            break;
+
     }
 }
 
@@ -455,8 +460,9 @@ void Engine::handleKeyDown(int key)
                                 loadLevel(level_.number + 1);
                             else
                             {
-                                gameState_ = GameState::MAIN_MENU;
-                                menu_ = menus_[4];
+                                gameState_ = GameState::GAME_COMPLETE;
+                                dialog_ = dialogs_[0];
+                                dialogMask_ = dialogsMasks_[0];
                             }
                             break;
 
@@ -472,6 +478,12 @@ void Engine::handleKeyDown(int key)
                 PlaySound("Sounds/click.wav", NULL, SND_ASYNC | SND_FILENAME);
                 gameState_ = GameState::RUNNING;
             }
+            break;
+
+        case GameState::GAME_OVER:
+        case GameState::GAME_COMPLETE:
+            gameState_ = GameState::MAIN_MENU;
+            menu_ = menus_[4];
             break;
 
         default:
@@ -606,7 +618,6 @@ void Engine::update()
 
     constexpr double collisionRadius = 0.05;
 
-
     auto block = level_.height * (int) player_.y + (int) player_.x;
 
     auto C  = level_.levelMap[block]                    <= 0; // current block - free space
@@ -708,8 +719,9 @@ void Engine::update()
 
                 if (--player_.lives == 0)
                 {
-                    gameState_ = GameState::MAIN_MENU;
-                    menu_ = menus_[4];
+                    gameState_ = GameState::GAME_OVER;
+                    dialog_ = dialogs_[1];
+                    dialogMask_ = dialogsMasks_[1];
                     return;
                 }
 
@@ -827,6 +839,12 @@ void Engine::render()
         case GameState::PAUSE_MENU:
             BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menu_, 0, 0, SRCPAINT);
             BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, menuMask_, 0, 0, SRCAND);
+            break;
+
+        case GameState::GAME_OVER:
+        case GameState::GAME_COMPLETE:
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, dialog_, 0, 0, SRCPAINT);
+            BitBlt(memoryDC_, 0, 0, cRect_.right, cRect_.bottom, dialogMask_, 0, 0, SRCAND);
             break;
 
     }

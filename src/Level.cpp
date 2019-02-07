@@ -1,6 +1,7 @@
 #include <fstream>
 #include <string>
 #include <stdexcept>
+#include <iostream>
 
 #include "Level.hpp"
 
