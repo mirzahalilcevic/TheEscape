@@ -1,6 +1,7 @@
 # The Escape
 
-A first-person Wolfenstein 3D inspired game my colleague and I built for a school project. The game is written in C++ and uses pure Windows GDI with a ray casting algorithm for rendering.
+A first-person Wolfenstein 3D inspired game my colleague and I built for a school project.
+The game is written in C++ and uses Windows GDI with a ray casting algorithm for rendering.
 
 ## Download
 
