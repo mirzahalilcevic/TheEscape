@@ -84,7 +84,7 @@ class Engine
         // number of resources
         static constexpr size_t texNum = 9;
         static constexpr size_t spriteNum = 3;
-        static constexpr size_t levelNum = 1;
+        static constexpr size_t levelNum = 2;
 
         // IDs
         static constexpr int door = 6;
