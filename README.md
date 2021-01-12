@@ -4,7 +4,7 @@ A first-person Wolfenstein 3D inspired game my colleague and I built for a schoo
 
 ## Download
 
-![The Escape v1.0](https://github.com/mirzahalilcevic/TheEscape/releases/download/v1.0/TheEscape.zip)
+[Click here to download The Escape v1.0](https://github.com/mirzahalilcevic/TheEscape/releases/download/v1.0/TheEscape.zip)
 
 ## Screenshots
 
